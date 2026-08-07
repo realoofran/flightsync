@@ -26,6 +26,7 @@
 .strip__flag-badge {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
 }
 
@@ -57,7 +58,7 @@
 }
 .strip--loading span {
   font-family: var(--font-mono);
-  color: var(--amber);
+  color: var(--amber-text);
   letter-spacing: 0.1em;
   font-size: var(--text-sm);
 }
@@ -84,6 +85,13 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
+  /* Without this, a flex child's default min-width:auto locks it to its
+     content's full intrinsic width — a long callsign then forces the whole
+     row wider than the strip, and since .strip clips overflow, the flag
+     badge and refresh button on either side get cut off instead of the
+     text simply truncating. */
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .strip__callsign {
   font-family: var(--font-mono);
@@ -93,6 +101,10 @@
   color: var(--text);
   text-shadow: 0 0 40px rgba(0, 229, 160, 0.2);
   line-height: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .strip__route {
@@ -106,7 +118,7 @@
   color: var(--text-muted);
 }
 .strip__arrow {
-  color: var(--green);
+  color: var(--green-text);
   font-size: var(--text-lg);
 }
 
@@ -126,7 +138,7 @@
   border: 1px solid var(--glass-border-bright);
   color: var(--text);
 }
-.tag--amber { color: var(--amber); border-color: rgba(255,176,0,0.35); background: var(--amber-dim); }
+.tag--amber { color: var(--amber-text); border-color: rgba(255,176,0,0.35); background: var(--amber-dim); }
 .tag--muted { color: var(--text-muted); }
 
 .strip__refresh {
@@ -144,7 +156,7 @@
   flex-shrink: 0;
 }
 .strip__refresh:hover {
-  color: var(--cyan);
+  color: var(--cyan-text);
   border-color: var(--cyan);
   transform: rotate(90deg);
 }

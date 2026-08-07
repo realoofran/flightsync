@@ -73,9 +73,13 @@ export const FLAG_PATTERNS = {
   PE: { type: 'vertical', colors: ['#D91023', '#FFFFFF', '#D91023'] },
   VE: { type: 'horizontal', colors: ['#FFCC00', '#00247D', '#CF142B'] },
 
-  // Asia-Pacific
-  JP: { type: 'solid', bg: '#FFFFFF' },
-  KR: { type: 'solid', bg: '#FFFFFF' },
+  // Asia-Pacific — Japan and Korea both have a white field, which used to
+  // be represented here as a flat 'solid' white rect: on a light-themed
+  // glass panel that renders as an indistinguishable blank box (and
+  // identical to each other). Both actually get their defining emblem
+  // drawn instead.
+  JP: { type: 'disc', bg: '#FFFFFF', disc: '#BC002D' },
+  KR: { type: 'disc-split', bg: '#FFFFFF', discLeft: '#C60C30', discRight: '#003478' },
   CN: { type: 'solid', bg: '#DE2910' },
   TW: { type: 'solid', bg: '#FE0000' },
   HK: { type: 'solid', bg: '#DE2910' },

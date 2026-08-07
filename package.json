@@ -14,7 +14,8 @@
     "dist": "npm run build && electron-builder",
     "postinstall": "electron-builder install-app-deps",
     "test": "vitest run",
-    "icons": "node scripts/generate-icon.mjs"
+    "icons": "node scripts/generate-icon.mjs",
+    "airports": "node scripts/generate-airport-coords.mjs"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",

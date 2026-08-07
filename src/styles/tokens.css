@@ -55,16 +55,37 @@
   --purple: #C09CFF;
   --purple-dim: rgba(192, 156, 255, 0.14);
 
-  /* Content-type identity colors */
-  --type-scenery: var(--cyan);
-  --type-livery: var(--amber);
-  --type-aircraft: var(--green);
-  --type-other: var(--purple);
+  /* Text-safe accent variants — used anywhere an accent color IS the text
+     (labels, badges, banner copy), as opposed to a border/glow/background
+     where WCAG's looser 3:1 non-text threshold applies. Equal to the base
+     accent by default (already >=10:1 against the near-black dark bg); the
+     light theme below overrides these with darkened, contrast-verified
+     versions, since the bright dark-mode-tuned accents measure as low as
+     1.5:1 against a light background otherwise — see PLAN.md's theme notes. */
+  --amber-text: var(--amber);
+  --green-text: var(--green);
+  --cyan-text: var(--cyan);
+  --purple-text: var(--purple);
+  --red-text: var(--red);
+
+  /* Banner copy — same text-safe-variant reasoning as above, kept separate
+     since banners use a lighter/desaturated tint rather than the raw accent. */
+  --banner-error-text: #FFD5DE;
+  --banner-amber-text: #FFE4B0;
+  --banner-green-text: #B9FFE9;
+
+  /* Content-type identity colors — always resolves to a text-safe variant,
+     since this is used for both decorative dots/borders AND the type label
+     text (LibraryView, ManifestList, AddonBreakdown). */
+  --type-scenery: var(--cyan-text);
+  --type-livery: var(--amber-text);
+  --type-aircraft: var(--green-text);
+  --type-other: var(--purple-text);
 
   /* Text */
   --text: #F5F7FA;
   --text-muted: #9BA3B5;
-  --text-faint: #626B80;
+  --text-faint: #6E7890;
 
   /* Type */
   --font-display: 'Inter', system-ui, sans-serif;
@@ -249,7 +270,22 @@ button { font-family: inherit; }
 
   --text: #161B26;
   --text-muted: #4B5468;
-  --text-faint: #8891A3;
+  --text-faint: #646E82;
+
+  /* The bright, dark-mode-tuned accents (--amber #FFB000, --green #00E5A0,
+     etc.) drop as low as ~1.5:1 against this theme's light background when
+     used as text — darkened, hue-matched variants computed to clear WCAG AA
+     (>=4.5:1) against #EEF1F6. Borders/glows/dims are left on the base
+     accents (decorative, not text — 3:1 non-text threshold already met by
+     the border/shadow treatment, not by flat color alone). */
+  --amber-text: #916400;
+  --green-text: #007C57;
+  --cyan-text: #007799;
+  --purple-text: #843EFF;
+  --red-text: #DB0024;
+  --banner-error-text: #7A0018;
+  --banner-amber-text: #6B4A00;
+  --banner-green-text: #00543A;
 
   --shadow-sm: 0 1px 2px rgba(20, 30, 50, 0.06);
   --shadow-md: 0 8px 30px rgba(20, 30, 50, 0.1);
@@ -258,3 +294,50 @@ button { font-family: inherit; }
 [data-theme='light'] body { background: var(--bg); }
 [data-theme='light'] .mesh-blob { opacity: 0.28; }
 [data-theme='light'] ::selection { color: #fff; }
+
+/* High-Contrast Avionics — an accessibility-oriented preset, not just a
+   third color scheme: pure black/white extremes, opaque panels (no blur —
+   backdrop blur softens edges in exactly the way a high-contrast mode
+   shouldn't), thicker bright borders, and the decorative background motion
+   (mesh blobs, grain) turned off entirely so nothing competes with the
+   content. Accent colors are left at their base (dark-theme) values since
+   those already measure >=10:1 against pure black — see the contrast
+   calculations behind this theme pass. */
+[data-theme='high-contrast'] {
+  --bg: #000000;
+  --bg-elevated: #000000;
+  --panel: #000000;
+  --panel-raised: #0A0A0A;
+  --panel-hover: #181818;
+  --border: #FFFFFF;
+  --border-bright: #FFFFFF;
+  --border-glow: #FFFFFF;
+
+  --glass-bg: rgba(0, 0, 0, 0.96);
+  --glass-bg-hover: rgba(255, 255, 255, 0.1);
+  --glass-border: #FFFFFF;
+  --glass-border-bright: #FFFFFF;
+  --glass-blur: none;
+  --glass-blur-soft: none;
+
+  --glass-bg-floating: #000000;
+  --glass-border-floating: #FFFFFF;
+  --glass-blur-floating: none;
+  --shadow-floating: 0 0 0 2px #FFFFFF;
+
+  --text: #FFFFFF;
+  --text-muted: #EAEAEA;
+  --text-faint: #C8C8C8;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+}
+[data-theme='high-contrast'] body { background: var(--bg); }
+[data-theme='high-contrast'] .mesh-blobs,
+[data-theme='high-contrast'] .grain { display: none; }
+[data-theme='high-contrast'] .glass {
+  box-shadow: none;
+  border-width: 1.5px;
+}
+[data-theme='high-contrast'] ::selection { background: #FFFFFF; color: #000000; }

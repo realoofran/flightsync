@@ -24,7 +24,7 @@ export default function HistoryView() {
         <div className="manifest">
           {history.map((entry, i) => (
             <div key={i} className="history-row">
-              <CheckCircle2 size={16} color={entry.errorCount > 0 ? 'var(--amber)' : 'var(--green)'} />
+              <CheckCircle2 size={16} color={entry.errorCount > 0 ? 'var(--amber-text)' : 'var(--green-text)'} />
               <span className="history-row__time">{formatTimestamp(entry.timestamp)}</span>
               <span className="history-row__stat"><Link2 size={12} /> {entry.linkedCount}</span>
               <span className="history-row__stat"><Unlink size={12} /> {entry.unlinkedCount}</span>

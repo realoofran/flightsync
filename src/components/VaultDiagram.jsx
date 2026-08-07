@@ -26,7 +26,7 @@ export default function VaultDiagram({ communityPath, vaultPath }) {
   return (
     <div className="vault-diagram">
       <div className="vault-diagram__box">
-        <FolderOpen size={18} color="var(--cyan)" />
+        <FolderOpen size={18} color="var(--cyan-text)" />
         <div className="vault-diagram__box-text">
           <span className="vault-diagram__box-label">COMMUNITY (what MSFS sees)</span>
           <span className="vault-diagram__box-path">{communityPath}</span>
@@ -37,12 +37,12 @@ export default function VaultDiagram({ communityPath, vaultPath }) {
       </div>
 
       <div className="vault-diagram__link">
-        <Link2 size={16} color="var(--green)" />
+        <Link2 size={16} color="var(--green-text)" />
         <span>links point here</span>
       </div>
 
       <div className="vault-diagram__box">
-        <FolderOpen size={18} color="var(--green)" />
+        <FolderOpen size={18} color="var(--green-text)" />
         <div className="vault-diagram__box-text">
           <span className="vault-diagram__box-label">VAULT (where your files actually live)</span>
           <span className="vault-diagram__box-path">{vaultPath || 'Set your Community folder first'}</span>

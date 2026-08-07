@@ -29,6 +29,9 @@ contextBridge.exposeInMainWorld('flightsync', {
     confirmMatch: (id, patch) => ipcRenderer.invoke('addon:confirmMatch', { id, patch }),
     setAlwaysActive: (id, value) => ipcRenderer.invoke('addon:setAlwaysActive', { id, value }),
   },
+  ai: {
+    classifyUnresolved: () => ipcRenderer.invoke('ai:classifyUnresolved'),
+  },
   simbrief: {
     fetchLatest: () => ipcRenderer.invoke('simbrief:fetchLatest'),
   },

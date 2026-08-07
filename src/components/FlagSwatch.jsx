@@ -65,6 +65,34 @@ function renderPattern(pattern) {
     });
   }
 
+  if (type === 'disc') {
+    // Centered circle on a field (e.g. Japan's Hinomaru) — a flat "solid"
+    // rect can't represent this, and reusing "solid" with just the field
+    // color (as this used to) renders as a blank box indistinguishable
+    // from any other white-field flag or from no flag at all.
+    return (
+      <>
+        <rect width="48" height="32" fill={pattern.bg} />
+        <circle cx="24" cy="16" r={pattern.r ?? 9} fill={pattern.disc} />
+      </>
+    );
+  }
+
+  if (type === 'disc-split') {
+    // Circle split left/right into two colors (approximates the red/blue
+    // taegeuk on South Korea's flag — the real emblem is a diagonal S-curve,
+    // simplified here to a straight split, per this file's stated
+    // philosophy of dominant-pattern swatches over reference graphics).
+    const r = pattern.r ?? 9;
+    return (
+      <>
+        <rect width="48" height="32" fill={pattern.bg} />
+        <path d={`M 24 ${16 - r} A ${r} ${r} 0 0 1 24 ${16 + r} Z`} fill={pattern.discRight} />
+        <path d={`M 24 ${16 - r} A ${r} ${r} 0 0 0 24 ${16 + r} Z`} fill={pattern.discLeft} />
+      </>
+    );
+  }
+
   if (type === 'nordic-cross') {
     // Offset cross (Scandinavian flag layout): vertical bar sits left of
     // center, horizontal bar through the middle.

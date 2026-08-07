@@ -71,7 +71,7 @@
 .onboarding__hint {
   text-align: left;
 }
-.onboarding__hint--warn { color: var(--amber); }
+.onboarding__hint--warn { color: var(--amber-text); }
 .onboarding__hint code {
   font-family: var(--font-mono);
   background: var(--glass-bg);

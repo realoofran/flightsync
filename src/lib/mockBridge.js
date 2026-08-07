@@ -62,6 +62,15 @@ export const mockBridge = {
     },
     setAlwaysActive: async (id, value) => ({ ...mockAddons.find(a => a.id === id), alwaysActive: value }),
   },
+  ai: {
+    classifyUnresolved: async () => ({
+      addons: mockAddons,
+      classifiedCount: 2,
+      failedCount: 0,
+      appliedCount: 2,
+      errorMessage: null,
+    }),
+  },
   simbrief: {
     fetchLatest: async () => ({
       origin: 'LTFM',

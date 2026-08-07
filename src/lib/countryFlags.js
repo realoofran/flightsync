@@ -2,11 +2,12 @@
 //
 // Resolves a flag for the current flight — prefers the operating airline's
 // home country, falls back to the origin airport's ICAO-prefix country for
-// GA/private/glider flights with no airline code. Uses native emoji flags
-// (built from Unicode regional indicator symbols) rather than image assets —
-// renders natively with zero network dependency and zero bundled image
-// weight. Windows 11 renders these properly via Segoe UI Emoji; older
-// Windows may show the two-letter code instead, a platform font limitation.
+// GA/private/glider flights with no airline code. Returns an ISO 3166-1
+// alpha-2 country code, not an emoji or asset — rendering is FlagSwatch.jsx's
+// job, which draws real vector shapes rather than relying on emoji flag
+// glyphs (confirmed not to render as colored flags on at least one real
+// Windows/Electron configuration; falls back to showing the two literal
+// letters instead).
 
 const AIRLINE_COUNTRY = {
   // Turkey
@@ -111,13 +112,7 @@ const AIRPORT_PREFIX_COUNTRY = [
   ['AN', 'NR'], ['AY', 'PG'], ['Y', 'AU'],
 ];
 
-/**
- * Returns an ISO 3166-1 alpha-2 country code (e.g. "TR"), not an emoji —
- * rendering is the caller's job. See FlagSwatch.jsx: this app draws actual
- * small vector flags rather than relying on emoji flag glyphs, which were
- * confirmed not to render as colored flags on at least one real Windows/
- * Electron configuration (falls back to showing the two literal letters).
- */
+/** @returns {string|null} ISO 3166-1 alpha-2 country code, e.g. "TR" */
 export function countryForFlight(plan) {
   if (!plan) return null;
   if (plan.airlineIcao && AIRLINE_COUNTRY[plan.airlineIcao]) {

@@ -34,7 +34,8 @@
 /* Approximate a dark map style from OSM's standard (light) tiles via a CSS
    filter — the well-known invert+hue-rotate trick — so it reads as part of
    this app's dark theme rather than a bright rectangle punched into it. */
-[data-theme='dark'] .route-map__tile {
+[data-theme='dark'] .route-map__tile,
+[data-theme='high-contrast'] .route-map__tile {
   filter: invert(0.92) hue-rotate(180deg) brightness(0.95) contrast(0.92) saturate(0.7);
 }
 

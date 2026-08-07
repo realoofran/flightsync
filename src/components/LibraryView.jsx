@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, RefreshCw, Boxes, FolderSearch } from 'lucide-react';
+import { Search, RefreshCw, Boxes, FolderSearch, Sparkles, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getBridge } from '../lib/mockBridge.js';
 import { useAppSettings } from '../lib/AppSettingsContext.jsx';
-import { CONTENT_TYPE_COLORS, colorFor } from '../lib/contentTypeColors.js';
+import { CONTENT_TYPE_COLORS, colorFor, cssColor } from '../lib/contentTypeColors.js';
 import { KNOWN_REGIONS } from '../lib/regions.js';
 import ConfirmForm from './ConfirmForm.jsx';
 import VaultDiagram from './VaultDiagram.jsx';
+import SceneryMap from './SceneryMap.jsx';
 
 const bridge = getBridge();
 const TYPE_FILTERS = ['ALL', 'SCENERY', 'LIVERY', 'AIRCRAFT', 'OTHER'];
@@ -29,13 +30,27 @@ function groupWarnings(warnings) {
   return [...byCode.entries()];
 }
 
+// Mirrors aiClassifier.js's needsAiClassification() — kept as a small
+// duplicated predicate rather than a shared import, since electron/lib is
+// Node-only and can't be bundled into the renderer.
+function needsAiClassification(addon) {
+  if (addon.contentType === 'OTHER') return true;
+  if (addon.contentType === 'SCENERY') return !addon.matchedIcao;
+  if (addon.contentType === 'AIRCRAFT' || addon.contentType === 'LIVERY') return !addon.matchedAircraftType;
+  return false;
+}
+
 export default function LibraryView() {
   const { t, settings } = useAppSettings();
   const [showVault, setShowVault] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   const [addons, setAddons] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState(null);
   const [scanWarnings, setScanWarnings] = useState([]);
+  const [aiClassifying, setAiClassifying] = useState(false);
+  const [aiMessage, setAiMessage] = useState(null);
+  const [aiError, setAiError] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
@@ -59,6 +74,28 @@ export default function LibraryView() {
       setError(err.message);
     } finally {
       setScanning(false);
+    }
+  }, []);
+
+  const classifyWithAi = useCallback(async () => {
+    setAiClassifying(true);
+    setAiError(null);
+    setAiMessage(null);
+    try {
+      const result = await bridge.ai.classifyUnresolved();
+      setAddons(result.addons);
+      if (result.errorMessage) {
+        setAiError(result.errorMessage);
+      } else {
+        const total = result.classifiedCount + result.failedCount;
+        setAiMessage(total === 0
+          ? "Nothing needed AI classification — every addon is already resolved."
+          : `Classified ${result.appliedCount} of ${total} addon${total === 1 ? '' : 's'} with AI.`);
+      }
+    } catch (err) {
+      setAiError(err.message);
+    } finally {
+      setAiClassifying(false);
     }
   }, []);
 
@@ -87,6 +124,8 @@ export default function LibraryView() {
       );
     });
   }, [addons, query, typeFilter, regionFilter]);
+
+  const unresolvedCount = useMemo(() => addons.filter(needsAiClassification).length, [addons]);
 
   const unconfirmed = filtered.filter(a => !a.confirmed);
   const confirmed = filtered.filter(a => a.confirmed);
@@ -120,6 +159,22 @@ export default function LibraryView() {
           <button className="btn btn--ghost" onClick={() => setShowVault(v => !v)}>
             <FolderSearch size={14} /> Where do my files live?
           </button>
+          {addons.length > 0 && (
+            <button className="btn btn--ghost" onClick={() => setShowMap(v => !v)}>
+              <MapPin size={14} /> {showMap ? 'Hide map' : 'View on map'}
+            </button>
+          )}
+          {addons.length > 0 && (
+            <button
+              className="btn btn--ghost"
+              onClick={classifyWithAi}
+              disabled={aiClassifying || unresolvedCount === 0}
+              title={unresolvedCount === 0 ? 'Every addon is already resolved' : `${unresolvedCount} addon(s) could use AI help`}
+            >
+              <Sparkles size={14} className={aiClassifying ? 'spin' : ''} />
+              {aiClassifying ? 'Classifying…' : `Classify with AI${unresolvedCount > 0 ? ` (${unresolvedCount})` : ''}`}
+            </button>
+          )}
           <button className="btn btn--ghost" onClick={scan} disabled={scanning}>
             <RefreshCw size={14} className={scanning ? 'spin' : ''} />
             {scanning ? t('scanning') : t('rescanCommunity')}
@@ -127,10 +182,26 @@ export default function LibraryView() {
         </div>
       </div>
 
+      {aiError && <div className="banner banner--error">{aiError}</div>}
+      {aiMessage && <div className="banner banner--amber">{aiMessage}</div>}
+
       <AnimatePresence>
         {showVault && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
             <VaultDiagram communityPath={settings.communityPath} vaultPath={settings.vaultPath} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showMap && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ marginBottom: 'var(--space-4)' }}
+          >
+            <SceneryMap addons={addons} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -153,7 +224,7 @@ export default function LibraryView() {
         <div className="type-legend">
           {Object.entries(CONTENT_TYPE_COLORS).map(([type, c]) => (
             <div key={type} className="type-legend__item">
-              <span className="type-legend__dot" style={{ background: c.hex }} />
+              <span className="type-legend__dot" style={{ background: `var(${c.var})` }} />
               <span className="type-legend__label">{c.label}</span>
               <span className="type-legend__count">{counts[type] ?? 0}</span>
             </div>
@@ -177,7 +248,7 @@ export default function LibraryView() {
             <button
               key={t}
               className={`filter-chip ${typeFilter === t ? 'filter-chip--active' : ''}`}
-              style={typeFilter === t && t !== 'ALL' ? { borderColor: colorFor(t).hex, color: colorFor(t).hex } : undefined}
+              style={typeFilter === t && t !== 'ALL' ? { borderColor: cssColor(t), color: cssColor(t) } : undefined}
               onClick={() => setTypeFilter(t)}
             >
               {t === 'ALL' ? 'All' : colorFor(t).label}
@@ -254,7 +325,7 @@ export default function LibraryView() {
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.2 }}
                   className="confirm-row confirm-row--stacked"
-                  style={{ borderLeftColor: 'var(--amber)' }}
+                  style={{ borderLeftColor: 'var(--amber-text)' }}
                 >
                   <div className="confirm-row__top">
                     <span className="led led--amber" />
@@ -300,6 +371,7 @@ export default function LibraryView() {
           <AnimatePresence initial={false}>
             {confirmed.map(addon => {
               const color = colorFor(addon.contentType);
+              const colorCss = `var(${color.var})`;
               return (
                 <motion.div
                   key={addon.id}
@@ -308,7 +380,7 @@ export default function LibraryView() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   className="confirm-row"
-                  style={{ borderLeftColor: addon.nameConflict ? 'var(--red)' : color.hex }}
+                  style={{ borderLeftColor: addon.nameConflict ? 'var(--red-text)' : colorCss }}
                 >
                   <span className={`led led--${addon.nameConflict ? 'red' : 'green'}`} />
                   <div className="confirm-row__info">
@@ -320,8 +392,8 @@ export default function LibraryView() {
                       {addon.categoryPath && ` · ${addon.categoryPath}`}
                     </span>
                   </div>
-                  {addon.nameConflict && <span className="manifest__type" style={{ color: 'var(--red)' }}>CONFLICT</span>}
-                  <span className="manifest__type" style={{ color: color.hex }}>{color.label}</span>
+                  {addon.nameConflict && <span className="manifest__type" style={{ color: 'var(--red-text)' }}>CONFLICT</span>}
+                  <span className="manifest__type" style={{ color: colorCss }}>{color.label}</span>
                   <label className="always-active">
                     <input
                       type="checkbox"

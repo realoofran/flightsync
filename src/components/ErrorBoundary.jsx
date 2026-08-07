@@ -28,7 +28,7 @@ export default class ErrorBoundary extends Component {
         <div className="titlebar-drag" />
         <div className="error-boundary__center">
           <div className="error-boundary__card glass notched">
-            <AlertTriangle size={32} color="var(--red)" />
+            <AlertTriangle size={32} color="var(--red-text)" />
             <h2>Something went wrong</h2>
             <p>
               FlightSync hit an unexpected error and couldn't continue rendering. Your addon

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { initDb, upsertScannedAddons, getDb } from './db.js';
+import { initDb, upsertScannedAddons, applyAiClassifications, getDb } from './db.js';
 
 let tmpDir;
 
@@ -74,5 +74,45 @@ describe('upsertScannedAddons — rescan behavior', () => {
     await upsertScannedAddons([scannedAddon({ id: 'a1' }), scannedAddon({ id: 'a2' })]);
     await upsertScannedAddons([scannedAddon({ id: 'a1' })]);
     expect(Object.keys(getDb().data.addons)).toEqual(['a1']);
+  });
+});
+
+describe('applyAiClassifications', () => {
+  it('auto-confirms a high-confidence, fully-resolved suggestion', async () => {
+    await upsertScannedAddons([scannedAddon({ contentType: 'OTHER', confirmed: false })]);
+    const applied = await applyAiClassifications([
+      { id: 'a1', contentType: 'SCENERY', matchedIcao: 'EDDM', matchedAircraftType: null, matchedAirline: null, confidence: 'high' },
+    ]);
+    expect(applied).toBe(1);
+    expect(getDb().data.addons.a1.contentType).toBe('SCENERY');
+    expect(getDb().data.addons.a1.matchedIcao).toBe('EDDM');
+    expect(getDb().data.addons.a1.confirmed).toBe(true);
+    expect(getDb().data.addons.a1.aiClassified).toBe(true);
+  });
+
+  it('leaves a low-confidence suggestion in the unconfirmed queue, pre-filled', async () => {
+    await upsertScannedAddons([scannedAddon({ contentType: 'OTHER', confirmed: false })]);
+    await applyAiClassifications([
+      { id: 'a1', contentType: 'SCENERY', matchedIcao: 'EDDM', matchedAircraftType: null, matchedAirline: null, confidence: 'low' },
+    ]);
+    expect(getDb().data.addons.a1.matchedIcao).toBe('EDDM');
+    expect(getDb().data.addons.a1.confirmed).toBe(false);
+  });
+
+  it('forces alwaysActive when auto-confirming an OTHER classification, matching confirmAddonMatch', async () => {
+    await upsertScannedAddons([scannedAddon({ contentType: 'SCENERY', matchedIcao: null, confirmed: false, alwaysActive: false })]);
+    await applyAiClassifications([
+      { id: 'a1', contentType: 'OTHER', matchedIcao: null, matchedAircraftType: null, matchedAirline: null, confidence: 'high' },
+    ]);
+    expect(getDb().data.addons.a1.confirmed).toBe(true);
+    expect(getDb().data.addons.a1.alwaysActive).toBe(true);
+  });
+
+  it('ignores updates for addon ids no longer in the library', async () => {
+    await upsertScannedAddons([scannedAddon({ id: 'a1' })]);
+    const applied = await applyAiClassifications([
+      { id: 'ghost', contentType: 'SCENERY', matchedIcao: 'EDDM', confidence: 'high' },
+    ]);
+    expect(applied).toBe(0);
   });
 });

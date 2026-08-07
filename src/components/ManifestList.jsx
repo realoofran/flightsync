@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { colorFor } from '../lib/contentTypeColors.js';
+import { colorFor, cssColor } from '../lib/contentTypeColors.js';
 import './ManifestList.css';
 
 const STATUS_CONFIG = {
@@ -24,6 +24,7 @@ export default function ManifestList({ addons, status, onRowClick, emptyLabel = 
       <AnimatePresence initial={false}>
         {addons.map((addon, i) => {
           const color = colorFor(addon.contentType);
+          const colorCss = cssColor(addon.contentType);
           return (
             <motion.div
               key={addon.id}
@@ -33,7 +34,7 @@ export default function ManifestList({ addons, status, onRowClick, emptyLabel = 
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2, delay: i * 0.02 }}
               className={`manifest__row ${onRowClick ? 'manifest__row--clickable' : ''}`}
-              style={{ borderLeftColor: color.hex }}
+              style={{ borderLeftColor: colorCss }}
               onClick={() => onRowClick?.(addon)}
             >
               <span className={`led led--${cfg.led}`} />
@@ -44,7 +45,7 @@ export default function ManifestList({ addons, status, onRowClick, emptyLabel = 
                 <span className="manifest__title">{addon.title}</span>
                 {addon.categoryPath && <span className="manifest__category">{addon.categoryPath}</span>}
               </div>
-              <span className="manifest__type" style={{ color: color.hex }}>{color.label}</span>
+              <span className="manifest__type" style={{ color: colorCss }}>{color.label}</span>
               <span className="manifest__status">{cfg.label}</span>
             </motion.div>
           );

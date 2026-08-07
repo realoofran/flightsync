@@ -188,7 +188,7 @@ export default function OnboardingWizard() {
               ) : (
                 <>
                   <div className="onboarding__result">
-                    <CheckCircle2 size={22} color="var(--green)" />
+                    <CheckCircle2 size={22} color="var(--green-text)" />
                     <span>
                       {scanResult.count} addon{scanResult.count === 1 ? '' : 's'} found
                       {scanResult.pending > 0 ? `, ${scanResult.pending} need confirmation` : ''}.

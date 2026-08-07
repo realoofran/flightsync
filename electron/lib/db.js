@@ -12,6 +12,7 @@
 import { Low } from 'lowdb';
 import { JSONFile } from 'lowdb/node';
 import path from 'node:path';
+import { regionForIcao } from './icaoRegions.js';
 
 /** @type {Low|null} */
 let db = null;
@@ -21,8 +22,9 @@ const DEFAULT_DATA = {
     communityPath: null,   // the user's one real MSFS Community folder — this is the only folder they ever need to point the app at
     vaultPath: null,       // hidden sibling folder FlightSync manages automatically — see addonScanner.js migration logic. Auto-derived from communityPath, never set by the user directly.
     simbriefPilotId: null,
+    aiApiKey: null,        // user's own Anthropic API key, used only by the opt-in "Classify with AI" step — never bundled into the app
     includeAlternates: true,
-    theme: 'dark',         // 'dark' | 'light'
+    theme: 'dark',         // 'dark' | 'light' | 'high-contrast'
     language: 'en',        // 'en' | 'de' | 'tr'
     onboardingComplete: false,
   },
@@ -118,6 +120,52 @@ export async function upsertScannedAddons(scannedAddons) {
   }
 
   await getDb().write();
+}
+
+/**
+ * Merges AI-suggested classifications (from aiClassifier.js) back into the
+ * library. Mirrors confirmAddonMatch's OTHER/alwaysActive rule so an
+ * AI-confirmed "OTHER" addon behaves identically to a manually-confirmed
+ * one. Only auto-confirms when the model reported high confidence AND the
+ * type's identifying field actually resolved — anything less still lands in
+ * the normal manual confirm queue, just pre-filled instead of blank.
+ */
+export async function applyAiClassifications(updates) {
+  const { data } = getDb();
+  let appliedCount = 0;
+
+  for (const u of updates ?? []) {
+    const existing = data.addons[u.id];
+    if (!existing) continue;
+
+    const contentType = u.contentType;
+    const matchedIcao = contentType === 'SCENERY' ? u.matchedIcao : null;
+    const matchedAircraftType = (contentType === 'AIRCRAFT' || contentType === 'LIVERY') ? u.matchedAircraftType : null;
+    const matchedAirline = contentType === 'LIVERY' ? u.matchedAirline : null;
+
+    const resolvedEnough = contentType === 'SCENERY'
+      ? Boolean(matchedIcao)
+      : contentType === 'OTHER'
+        ? true
+        : Boolean(matchedAircraftType);
+    const shouldConfirm = u.confidence === 'high' && resolvedEnough;
+
+    data.addons[u.id] = {
+      ...existing,
+      contentType,
+      matchedIcao,
+      matchedAircraftType,
+      matchedAirline,
+      region: contentType === 'SCENERY' && matchedIcao ? regionForIcao(matchedIcao) : null,
+      confirmed: shouldConfirm ? true : existing.confirmed,
+      alwaysActive: shouldConfirm && contentType === 'OTHER' ? true : existing.alwaysActive,
+      aiClassified: true,
+    };
+    appliedCount++;
+  }
+
+  await getDb().write();
+  return appliedCount;
 }
 
 export async function confirmAddonMatch(id, patch) {

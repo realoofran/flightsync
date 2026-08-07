@@ -24,7 +24,7 @@
   margin-bottom: var(--space-4);
   border-bottom: 1px solid var(--glass-border);
 }
-.ofp-panel__airport-arrow { color: var(--green); font-weight: 400; }
+.ofp-panel__airport-arrow { color: var(--green-text); font-weight: 400; }
 
 .ofp-section {
   padding-bottom: var(--space-4);
@@ -41,7 +41,7 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.12em;
-  color: var(--cyan);
+  color: var(--cyan-text);
   opacity: 0.85;
   margin-bottom: var(--space-3);
 }

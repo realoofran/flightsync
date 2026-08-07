@@ -15,3 +15,11 @@ export const CONTENT_TYPE_COLORS = {
 export function colorFor(contentType) {
   return CONTENT_TYPE_COLORS[contentType] ?? CONTENT_TYPE_COLORS.OTHER;
 }
+
+// Prefer this over reading .hex directly wherever the value goes into a
+// style/color prop — resolves through the CSS custom property (which the
+// active theme may override, e.g. the light theme's darkened text-safe
+// variants) instead of hardcoding the dark-theme-tuned literal.
+export function cssColor(contentType) {
+  return `var(${colorFor(contentType).var})`;
+}

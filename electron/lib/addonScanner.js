@@ -28,6 +28,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { extractIcaoCodes, resolveConfidentIcao } from './icaoDatabase.js';
 import { regionForIcao } from './icaoRegions.js';
+import { CONTENT_TYPES } from './contentTypes.js';
 
 const MAX_SCAN_DEPTH = 10;
 
@@ -260,9 +261,7 @@ async function scanOneAddon(absolutePath, folderName, categoryChain) {
     matchedIcao,
     matchedAircraftType,
     matchedAirline,
-    confirmed: contentType === 'SCENERY'
-      ? Boolean(matchedIcao)
-      : Boolean(matchedAircraftType),
+    confirmed: deriveConfirmed(contentType, matchedIcao, matchedAircraftType),
     alwaysActive: false,
     nameConflict: false,
     manifestHash: manifest ? hashContent(JSON.stringify(manifest)) : hashContent(folderName),
@@ -285,6 +284,19 @@ function normalizeContentType(raw, categoryHintText) {
     if (pattern.test(categoryHintText)) return type;
   }
   return 'OTHER';
+}
+
+// Shared by the heuristic scanner and the AI classification fallback
+// (aiClassifier.js) so a manually-confirmed vs. still-needs-review addon is
+// decided by exactly one rule, never two copies that could drift apart.
+// SCENERY needs a resolved airport; AIRCRAFT/LIVERY need a resolved type;
+// OTHER has nothing further to resolve, so it's never auto-confirmed here —
+// it always goes through the manual confirm queue once, same as today.
+export function deriveConfirmed(contentType, matchedIcao, matchedAircraftType) {
+  if (!CONTENT_TYPES.includes(contentType)) return false;
+  if (contentType === 'SCENERY') return Boolean(matchedIcao);
+  if (contentType === 'AIRCRAFT' || contentType === 'LIVERY') return Boolean(matchedAircraftType);
+  return false;
 }
 
 // Aircraft ICAO type codes — both descriptive-name patterns AND the bare

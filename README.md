@@ -113,15 +113,19 @@ publishing, generate a token at
 - **Local only.** All settings, scanned addon data, and sync history are
   stored in a local JSON file in Electron's per-user app-data folder — never
   sent anywhere.
-- **Two outbound network calls, both directly tied to something you did.**
+- **Outbound network calls, all directly tied to something you did.**
   Pressing "Pull from SimBrief" sends your configured SimBrief pilot ID/
   username to SimBrief's public OFP API (`simbrief.com`) to fetch your
   flight plan. Loading the route map on the Sync tab fetches map tiles from
   OpenStreetMap's public tile server (`tile.openstreetmap.org`) — no
   API key, no account, and no data about you is sent beyond the ordinary
-  image requests a browser would make. Neither call happens unless you're
-  actively looking at a flight plan. There is no telemetry or analytics of
-  any kind.
+  image requests a browser would make. Pressing "Classify with AI" in
+  Library sends only the folder name, title, and category path of addons
+  the built-in matching couldn't identify — never file contents — to
+  Anthropic's API, using an API key you provide yourself in Settings
+  (nothing is bundled with the app). None of these calls happen unless
+  you're actively using that specific feature. There is no telemetry or
+  analytics of any kind.
 - **What FlightSync does to your files.** The first time you scan, any addon
   sitting directly in your Community folder is moved once into a hidden
   sibling `.flightsync-vault` folder and replaced with a directory

@@ -1,0 +1,120 @@
+.scenery-map {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.scenery-map--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 240px;
+}
+.scenery-map--empty span {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  text-align: center;
+  padding: 0 var(--space-4);
+}
+
+.scenery-map__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--glass-border);
+}
+.scenery-map__count {
+  color: var(--text-faint);
+  opacity: 0.8;
+}
+
+.scenery-map__viewport {
+  position: relative;
+  overflow: hidden;
+  background: #0b1220;
+}
+
+.scenery-map__tile {
+  position: absolute;
+  user-select: none;
+  pointer-events: none;
+}
+[data-theme='dark'] .scenery-map__tile,
+[data-theme='high-contrast'] .scenery-map__tile {
+  filter: invert(0.92) hue-rotate(180deg) brightness(0.95) contrast(0.92) saturate(0.7);
+}
+
+.scenery-map__overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.scenery-map__node {
+  fill: var(--type-scenery);
+  stroke: rgba(0, 0, 0, 0.5);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--type-scenery) 60%, transparent));
+}
+.scenery-map__node-ring {
+  fill: none;
+  stroke: var(--type-scenery);
+  stroke-width: 1.5;
+  opacity: 0.6;
+}
+.scenery-map__node-count {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  fill: #04141a;
+  pointer-events: none;
+  user-select: none;
+}
+
+.scenery-map__tooltip {
+  position: absolute;
+  z-index: 2;
+  max-width: 200px;
+  background: rgba(10, 16, 24, 0.92);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  pointer-events: none;
+  box-shadow: var(--shadow-md);
+}
+.scenery-map__tooltip-icao {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--type-scenery);
+  margin-bottom: 3px;
+}
+.scenery-map__tooltip-title {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.scenery-map__attribution {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font-size: 9.5px;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+}

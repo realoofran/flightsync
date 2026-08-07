@@ -8,11 +8,12 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-import { initDb, getDb, upsertScannedAddons, confirmAddonMatch, setAlwaysActive, recordSyncResult, updateSettings } from './lib/db.js';
+import { initDb, getDb, upsertScannedAddons, confirmAddonMatch, setAlwaysActive, recordSyncResult, updateSettings, applyAiClassifications } from './lib/db.js';
 import { scanLibrary } from './lib/addonScanner.js';
 import { computeSyncPlan, applySyncPlan } from './lib/symlinkManager.js';
 import { fetchLatestOfp } from './lib/simbriefClient.js';
 import { resolveRequiredAddons, findPendingConfirmations } from './lib/flightMatcher.js';
+import { classifyAddonsWithAI } from './lib/aiClassifier.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV === 'development';
@@ -353,6 +354,23 @@ ipcMain.handle('library:list', () => Object.values(getDb().data.addons));
 
 ipcMain.handle('addon:confirmMatch', (_e, { id, patch }) => confirmAddonMatch(id, patch));
 ipcMain.handle('addon:setAlwaysActive', (_e, { id, value }) => setAlwaysActive(id, value));
+
+ipcMain.handle('ai:classifyUnresolved', async () => {
+  const { aiApiKey } = getDb().data.settings;
+  if (!aiApiKey) throw new Error('Set your Anthropic API key in Settings first.');
+
+  const library = Object.values(getDb().data.addons);
+  const { updates, classifiedCount, failedCount, errorMessage } = await classifyAddonsWithAI(library, aiApiKey);
+  const appliedCount = await applyAiClassifications(updates);
+
+  return {
+    addons: Object.values(getDb().data.addons),
+    classifiedCount,
+    failedCount,
+    appliedCount,
+    errorMessage,
+  };
+});
 
 // ---------------------------------------------------------------------------
 // IPC: SimBrief + sync flow

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { FolderOpen, Sun, Moon, Wand2, RefreshCw, Download, CheckCircle2 } from 'lucide-react';
+import { FolderOpen, Sun, Moon, Wand2, RefreshCw, Download, CheckCircle2, Contrast } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getBridge } from '../lib/mockBridge.js';
 import { useAppSettings } from '../lib/AppSettingsContext.jsx';
@@ -57,7 +57,7 @@ export default function SettingsView() {
           </button>
         </div>
         {detectFailed && (
-          <p className="settings-hint" style={{ color: 'var(--amber)' }}>
+          <p className="settings-hint" style={{ color: 'var(--amber-text)' }}>
             Couldn't find an MSFS install automatically (checked Microsoft Store and every Steam
             library) — browse to it manually below.
           </p>
@@ -90,6 +90,26 @@ export default function SettingsView() {
       </section>
 
       <section className="settings-block">
+        <label className="settings-label">AI classification (optional)</label>
+        <p className="settings-hint">
+          Your own <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">Anthropic API key</a> —
+          only used by the "Classify with AI" button in Library, for addons the built-in matching
+          couldn't identify on its own. Only folder/title names are sent, never file contents.
+          Stored locally on this machine, never bundled with the app. Leave blank to skip this
+          entirely — everything else works without it.
+        </p>
+        <div className="settings-row">
+          <input
+            type="password"
+            autoComplete="off"
+            defaultValue={settings.aiApiKey ?? ''}
+            placeholder="sk-ant-…"
+            onBlur={(e) => updateSettings({ aiApiKey: e.target.value || null })}
+          />
+        </div>
+      </section>
+
+      <section className="settings-block">
         <label className="settings-row settings-row--checkbox">
           <input
             type="checkbox"
@@ -114,6 +134,12 @@ export default function SettingsView() {
             onClick={() => updateSettings({ theme: 'light' })}
           >
             <Sun size={14} /> {t('themeLight')}
+          </button>
+          <button
+            className={`theme-toggle__option ${settings.theme === 'high-contrast' ? 'theme-toggle__option--active' : ''}`}
+            onClick={() => updateSettings({ theme: 'high-contrast' })}
+          >
+            <Contrast size={14} /> {t('themeHighContrast')}
           </button>
         </div>
       </section>

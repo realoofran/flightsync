@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { CONTENT_TYPE_COLORS } from '../lib/contentTypeColors.js';
+import { CONTENT_TYPE_COLORS, cssColor } from '../lib/contentTypeColors.js';
 
 const SIZE = 92;
 const STROKE = 12;
@@ -43,7 +43,7 @@ export default function AddonBreakdown({ stats }) {
             cy={SIZE / 2}
             r={RADIUS}
             fill="none"
-            stroke={CONTENT_TYPE_COLORS[arc.type].hex}
+            stroke={cssColor(arc.type)}
             strokeWidth={STROKE}
             strokeDasharray={arc.dasharray}
             strokeDashoffset={arc.dashoffset}
@@ -60,7 +60,7 @@ export default function AddonBreakdown({ stats }) {
       <div className="addon-breakdown__legend">
         {SEGMENTS.map(seg => (
           <div key={seg.key} className="addon-breakdown__legend-row">
-            <span className="addon-breakdown__legend-dot" style={{ background: CONTENT_TYPE_COLORS[seg.type].hex }} />
+            <span className="addon-breakdown__legend-dot" style={{ background: cssColor(seg.type) }} />
             <span className="addon-breakdown__legend-label">{CONTENT_TYPE_COLORS[seg.type].label}</span>
             <span className="addon-breakdown__legend-value">{stats[seg.key] ?? 0}</span>
           </div>
