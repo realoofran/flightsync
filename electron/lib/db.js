@@ -1,0 +1,164 @@
+// electron/lib/db.js
+//
+// Local persistence via lowdb (flat JSON file — no native build step, so it
+// doesn't fight electron-builder's native-module rebuild process the way
+// better-sqlite3 can). Store lives in Electron's userData dir, NOT in the
+// app install directory.
+//
+// Swap-out note: if the library grows past a few thousand addons and JSON
+// read/write starts to feel slow, migrate this module to better-sqlite3.
+// Every call in here is already async so the call sites won't need to change.
+
+import { Low } from 'lowdb';
+import { JSONFile } from 'lowdb/node';
+import path from 'node:path';
+
+/** @type {Low|null} */
+let db = null;
+
+const DEFAULT_DATA = {
+  settings: {
+    communityPath: null,   // the user's one real MSFS Community folder — this is the only folder they ever need to point the app at
+    vaultPath: null,       // hidden sibling folder FlightSync manages automatically — see addonScanner.js migration logic. Auto-derived from communityPath, never set by the user directly.
+    simbriefPilotId: null,
+    includeAlternates: true,
+    theme: 'dark',         // 'dark' | 'light'
+    language: 'en',        // 'en' | 'de' | 'tr'
+    onboardingComplete: false,
+  },
+  addons: {},        // id -> Addon  (see addonScanner.js)
+  syncHistory: [],   // { timestamp, plan summary, result } — last 50 kept
+};
+
+/**
+ * @param {string} userDataPath  Electron's app.getPath('userData')
+ */
+export async function initDb(userDataPath) {
+  const file = path.join(userDataPath, 'flightsync-db.json');
+  const adapter = new JSONFile(file);
+  // lowdb's Low constructor stores the defaultData argument by reference,
+  // not a copy — when no DB file exists yet it becomes db.data verbatim. If
+  // that were the shared module-level DEFAULT_DATA constant, every fresh
+  // initDb() call in the same process (multiple installs sharing a dev
+  // process, or just re-initializing) would read and mutate the exact same
+  // object graph. Clone it per call so each DB instance is independent.
+  db = new Low(adapter, structuredClone(DEFAULT_DATA));
+  await db.read();
+  db.data ||= structuredClone(DEFAULT_DATA);
+  // Migration: onboardingComplete didn't exist before v1.0.0. Treat any
+  // existing DB that already has a communityPath configured as already
+  // onboarded, so upgrading users don't see the first-run wizard again.
+  if (db.data.settings.onboardingComplete === undefined) {
+    db.data.settings.onboardingComplete = Boolean(db.data.settings.communityPath);
+  }
+  await db.write();
+  return db;
+}
+
+export function getDb() {
+  if (!db) throw new Error('DB not initialized — call initDb() first at app startup.');
+  return db;
+}
+
+/**
+ * The vault lives as a hidden sibling of the Community folder (same parent
+ * directory) — guarantees it's on the same filesystem/drive as Community,
+ * so migrating addons in and out is a fast metadata-only move, never a
+ * cross-drive copy.
+ */
+export function deriveVaultPath(communityPath) {
+  if (!communityPath) return null;
+  const parent = path.dirname(communityPath);
+  return path.join(parent, '.flightsync-vault');
+}
+
+/**
+ * Merges freshly scanned addons into the store AND removes any previously
+ * known addon that no longer showed up in this scan (deleted, moved out of
+ * the vault by hand, etc.) — this is what makes "Rescan" actually reflect
+ * reality instead of accumulating stale ghost entries forever.
+ */
+export async function upsertScannedAddons(scannedAddons) {
+  const { data } = getDb();
+  const scannedIds = new Set(scannedAddons.map(a => a.id));
+
+  for (const addon of scannedAddons) {
+    const existing = data.addons[addon.id];
+
+    if (existing && existing.confirmed && existing.manifestHash === addon.manifestHash) {
+      // Unchanged on disk AND already confirmed — keep the user's prior
+      // confirmation/overrides, don't overwrite with a freshly (re-)computed
+      // heuristic guess. Name conflicts are a property of the *current* scan
+      // (another addon may have appeared/disappeared with the same folder
+      // name since last time), so that one field always tracks the fresh
+      // value regardless.
+      existing.nameConflict = addon.nameConflict;
+      continue;
+    }
+    if (existing && existing.confirmed && existing.manifestHash !== addon.manifestHash) {
+      // Addon was updated — re-scan it but preserve manual overrides the
+      // user is likely to want kept (alwaysActive), reset confirmation.
+      data.addons[addon.id] = { ...addon, alwaysActive: existing.alwaysActive };
+      continue;
+    }
+    // Never confirmed (new, or still sitting in the confirm queue) — always
+    // take the fresh scan result, even if the file on disk hasn't changed.
+    // Without this, a matching-algorithm improvement (new false-positive
+    // word, a bug fix, etc.) would never actually apply to anything already
+    // scanned — Rescan would just restore the exact same stale unconfirmed
+    // guess forever, since manifestHash never changes for an untouched
+    // addon folder.
+    data.addons[addon.id] = existing ? { ...addon, alwaysActive: existing.alwaysActive } : addon;
+  }
+
+  for (const existingId of Object.keys(data.addons)) {
+    if (!scannedIds.has(existingId)) {
+      delete data.addons[existingId];
+    }
+  }
+
+  await getDb().write();
+}
+
+export async function confirmAddonMatch(id, patch) {
+  const { data } = getDb();
+  if (!data.addons[id]) throw new Error(`Unknown addon id: ${id}`);
+  // "OTHER" means the addon isn't tied to any route/aircraft (a utility mod,
+  // sound pack, etc.) — it can never be matched by flightMatcher.js, so the
+  // only sane behavior is to always keep it linked, same as a manually
+  // flagged "always active" addon.
+  const alwaysActive = patch.contentType === 'OTHER' ? true : (data.addons[id].alwaysActive);
+  data.addons[id] = { ...data.addons[id], ...patch, alwaysActive, confirmed: true };
+  await getDb().write();
+  return data.addons[id];
+}
+
+export async function setAlwaysActive(id, value) {
+  const { data } = getDb();
+  if (!data.addons[id]) throw new Error(`Unknown addon id: ${id}`);
+  data.addons[id].alwaysActive = value;
+  await getDb().write();
+  return data.addons[id];
+}
+
+export async function recordSyncResult(summary) {
+  const { data } = getDb();
+  data.syncHistory.unshift({ timestamp: new Date().toISOString(), ...summary });
+  data.syncHistory = data.syncHistory.slice(0, 50);
+  await getDb().write();
+}
+
+export async function updateSettings(patch) {
+  const { data } = getDb();
+  const next = { ...data.settings, ...patch };
+  // vaultPath auto-derives alongside communityPath by default (recommended:
+  // guarantees same drive, so migration is a fast metadata-only move) —
+  // unless the caller explicitly set vaultPath in this same patch, which
+  // means the user deliberately chose a custom vault location via Settings.
+  if (patch.communityPath !== undefined && patch.vaultPath === undefined) {
+    next.vaultPath = deriveVaultPath(patch.communityPath);
+  }
+  data.settings = next;
+  await getDb().write();
+  return data.settings;
+}

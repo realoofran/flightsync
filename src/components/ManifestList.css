@@ -1,0 +1,87 @@
+.manifest {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-soft);
+  -webkit-backdrop-filter: var(--glass-blur-soft);
+  border: 1px solid var(--glass-border);
+}
+
+.manifest__row {
+  display: grid;
+  grid-template-columns: 20px 76px 1fr 84px 84px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3);
+  background: transparent;
+  border-bottom: 1px solid var(--glass-border);
+  border-left: 3px solid transparent;
+  font-size: var(--text-sm);
+  transition: background 0.15s, border-left-color 0.15s;
+}
+.manifest__row:last-child { border-bottom: none; }
+.manifest__row--clickable { cursor: pointer; }
+.manifest__row--clickable:hover { background: var(--glass-bg-hover); }
+
+.manifest__icao {
+  font-family: var(--font-mono);
+  color: var(--text);
+  letter-spacing: 0.04em;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.manifest__titleblock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+.manifest__title {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.manifest__category {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+}
+.manifest__type {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.manifest__status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-align: right;
+  color: var(--text-muted);
+}
+
+.manifest__empty {
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  border: 1px dashed var(--glass-border-bright);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+}
+
+.led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.led--green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.led--red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+.led--amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.led--cyan-dim { background: var(--text-faint); }

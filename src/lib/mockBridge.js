@@ -1,0 +1,148 @@
+// src/lib/mockBridge.js
+//
+// When running `vite dev` in a plain browser tab (not inside Electron),
+// `window.flightsync` doesn't exist. This mock stands in so the UI is
+// inspectable/iterable without spinning up the full Electron shell every
+// time — genuinely useful during UI-only iteration. It is NEVER bundled
+// into logic that touches a real filesystem; it just fakes the IPC shape.
+
+const mockSettings = {
+  communityPath: 'C:\\Users\\Devran\\AppData\\Roaming\\Microsoft Flight Simulator 2024\\Packages\\Community',
+  vaultPath: 'C:\\Users\\Devran\\AppData\\Roaming\\Microsoft Flight Simulator 2024\\Packages\\.flightsync-vault',
+  simbriefPilotId: '1598381',
+  includeAlternates: true,
+  theme: 'dark',
+  language: 'en',
+  onboardingComplete: true,
+};
+
+const mockAddons = [
+  { id: 'a1', folderName: 'fspro-eddm-munich', categoryPath: '', title: 'Munich Airport EDDM Enhanced', contentType: 'SCENERY', region: 'Europe', candidateIcaos: ['EDDM'], matchedIcao: 'EDDM', matchedAircraftType: null, matchedAirline: null, confirmed: true, alwaysActive: false, nameConflict: false },
+  { id: 'a2', folderName: 'orbx-ltfm-istanbul', categoryPath: '', title: 'Istanbul Airport LTFM', contentType: 'SCENERY', region: 'Europe', candidateIcaos: ['LTFM'], matchedIcao: 'LTFM', matchedAircraftType: null, matchedAirline: null, confirmed: true, alwaysActive: false, nameConflict: false },
+  { id: 'a3', folderName: 'fspro-eddf-frankfurt', categoryPath: 'Airports', title: 'Frankfurt Airport EDDF', contentType: 'SCENERY', region: 'Europe', candidateIcaos: ['EDDF'], matchedIcao: 'EDDF', matchedAircraftType: null, matchedAirline: null, confirmed: true, alwaysActive: false, nameConflict: true },
+  { id: 'a3b', folderName: 'fspro-othh-doha', categoryPath: '', title: 'Doha Hamad International', contentType: 'SCENERY', region: 'Middle East', candidateIcaos: ['OTHH'], matchedIcao: 'OTHH', matchedAircraftType: null, matchedAirline: null, confirmed: true, alwaysActive: false, nameConflict: false },
+  { id: 'a4', folderName: 'fbw-a21n-thy-liv', categoryPath: '', title: 'Turkish Airlines A321neo', contentType: 'LIVERY', region: null, candidateIcaos: [], matchedIcao: null, matchedAircraftType: 'A21N', matchedAirline: 'THY', confirmed: true, alwaysActive: false, nameConflict: false },
+  { id: 'a5', folderName: 'fenix-a320-base', categoryPath: '', title: 'Fenix A320 Base Package', contentType: 'AIRCRAFT', region: null, candidateIcaos: [], matchedIcao: null, matchedAircraftType: 'A20N', matchedAirline: null, confirmed: true, alwaysActive: true, nameConflict: false },
+  { id: 'a6', folderName: 'community-kjfk-unnamed-v2', categoryPath: '', title: 'Airport Enhancement Vol. 2', contentType: 'SCENERY', region: null, candidateIcaos: [], matchedIcao: null, matchedAircraftType: null, matchedAirline: null, confirmed: false, alwaysActive: false, nameConflict: false },
+  { id: 'a7', folderName: 'custom-repaint-01', categoryPath: '', title: 'Custom Repaint Pack', contentType: 'LIVERY', region: null, candidateIcaos: [], matchedIcao: null, matchedAircraftType: null, matchedAirline: null, confirmed: false, alwaysActive: false, nameConflict: false },
+  { id: 'a8', folderName: 'fspro-eddf-frankfurt', categoryPath: 'Backup', title: 'Frankfurt EDDF (old copy)', contentType: 'SCENERY', region: 'Europe', candidateIcaos: ['EDDF'], matchedIcao: 'EDDF', matchedAircraftType: null, matchedAirline: null, confirmed: true, alwaysActive: false, nameConflict: true },
+];
+
+export const mockBridge = {
+  settings: {
+    get: async () => ({ ...mockSettings }),
+    update: async (patch) => {
+      Object.assign(mockSettings, patch);
+      return { ...mockSettings };
+    },
+    detectCommunityPath: async () =>
+      'C:\\Users\\Devran\\AppData\\Roaming\\Microsoft Flight Simulator 2024\\Packages\\Community',
+  },
+  dialog: {
+    pickFolder: async () => 'C:\\fake\\path\\selected',
+  },
+  shell: {
+    openFolder: async () => ({ ok: true }),
+  },
+  library: {
+    scan: async () => ({
+      addons: mockAddons,
+      warnings: [
+        { path: 'fspro-eddf-frankfurt', code: 'name-conflict', message: '"fspro-eddf-frankfurt" in Airports and Backup' },
+        { path: 'community-kjfk-unnamed-v2', code: 'no-manifest', message: 'No manifest.json/layout.json anywhere inside' },
+      ],
+    }),
+    list: async () => mockAddons,
+  },
+  addon: {
+    confirmMatch: async (id, patch) => {
+      const base = mockAddons.find(a => a.id === id);
+      const alwaysActive = patch.contentType === 'OTHER' ? true : base.alwaysActive;
+      return { ...base, ...patch, alwaysActive, confirmed: true };
+    },
+    setAlwaysActive: async (id, value) => ({ ...mockAddons.find(a => a.id === id), alwaysActive: value }),
+  },
+  simbrief: {
+    fetchLatest: async () => ({
+      origin: 'LTFM',
+      destination: 'EDDM',
+      alternates: ['EDDF'],
+      aircraftIcao: 'A21N',
+      airlineIcao: 'THY',
+      callsign: 'THY1598',
+      fetchedAt: new Date().toISOString(),
+      originCoord: { lat: 41.262, lon: 28.727 },
+      destinationCoord: { lat: 48.354, lon: 11.786 },
+      routePoints: [
+        { ident: 'EZS', lat: 40.98, lon: 25.5 },
+        { ident: 'SOFIA', lat: 42.7, lon: 23.3 },
+        { ident: 'BUD', lat: 47.5, lon: 19.0 },
+      ],
+      ofp: {
+        routeString: 'EZS UP975 SOFIA UM984 BUD UZ29 ROKIL DCT EDDM',
+        distanceNm: 918,
+        gcDistanceNm: 897,
+        estTimeEnrouteSec: 8100,
+        cruiseAltitudeFt: 36000,
+        blockFuelLbs: 14200,
+        tripFuelLbs: 11800,
+        taxiFuelLbs: 400,
+        reserveFuelLbs: 1600,
+        alternateFuelLbs: 900,
+        originName: 'Istanbul Airport',
+        destinationName: 'Munich Airport',
+        alternateIcao: 'EDDF',
+        alternateName: 'Frankfurt Airport',
+        taxiOutMin: 18,
+        taxiInMin: 8,
+        maxTowLbs: 205000,
+        zfwLbs: 142300,
+        towLbs: 156500,
+        landingWeightLbs: 144700,
+        paxCount: 168,
+        cargoLbs: 4200,
+        costIndex: 22,
+        avgWindComponent: '-14',
+        originMetar: 'LTFM 061620Z 24008KT 9999 FEW035 22/14 Q1015 NOSIG',
+        destinationMetar: 'EDDM 061650Z 27006KT 9999 SCT040 18/11 Q1018 NOSIG',
+        schedOutUtc: new Date(Date.now() + 30 * 60000).toISOString(),
+        schedInUtc: new Date(Date.now() + 3 * 3600000).toISOString(),
+      },
+    }),
+  },
+  sync: {
+    preview: async () => ({
+      syncPlan: {
+        toLink: [mockAddons[0], mockAddons[1], mockAddons[4]],
+        toUnlink: [],
+        unchanged: [mockAddons[5]],
+      },
+      pendingConfirmation: [mockAddons[6]],
+    }),
+    apply: async () => ({ linked: ['a1', 'a2', 'a4'], unlinked: [], errors: [] }),
+    history: async () => ([
+      { timestamp: new Date(Date.now() - 86400000).toISOString(), linkedCount: 3, unlinkedCount: 2, errorCount: 0 },
+    ]),
+  },
+  updater: {
+    check: async () => ({ state: 'unavailable', message: 'Updates only run in the packaged app, not in dev mode.' }),
+    install: async () => {},
+    onStatus: () => () => {},
+  },
+};
+
+export function getBridge() {
+  return globalThis.flightsync ?? mockBridge;
+}
+
+/**
+ * True only when the real Electron preload bridge failed to load — as
+ * opposed to intentionally running `vite dev` in a plain browser tab for
+ * UI-only iteration. Distinguished by checking the Electron user agent:
+ * if we're inside Electron's Chromium but window.flightsync is still
+ * missing, the preload script threw and silently left us on mock data.
+ */
+export function isPreloadBroken() {
+  const inElectron = navigator.userAgent.includes('Electron');
+  return inElectron && !globalThis.__flightsyncPreloadOk;
+}

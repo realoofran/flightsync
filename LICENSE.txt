@@ -1,0 +1,28 @@
+FlightSync
+Copyright (c) 2026 Devran. All rights reserved.
+
+This software is distributed in binary (installer) form for your personal,
+non-commercial use with Microsoft Flight Simulator 2024. By installing or
+running FlightSync you agree to the following:
+
+1. You may install and run this application on your own machine(s).
+2. You may not redistribute, resell, rent, or sublicense the installer or
+   any extracted part of it.
+3. You may not decompile, reverse-engineer, or create derivative works from
+   the compiled application, except to the extent applicable law expressly
+   permits this despite this restriction.
+4. No source code is licensed or provided under this agreement.
+
+DISCLAIMER OF WARRANTY
+
+FlightSync creates directory junctions and moves files within your MSFS
+Community folder. While it is designed to never delete your addon files and
+to leave anything it doesn't recognize untouched, it is provided "AS IS",
+WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM,
+DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. Keeping backups of
+valuable addon installations is always recommended.
+
+Questions or issues: contact the author directly.

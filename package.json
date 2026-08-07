@@ -1,0 +1,74 @@
+{
+  "name": "flightsync",
+  "productName": "FlightSync",
+  "version": "1.0.0",
+  "description": "Automatically links only the MSFS 2024 Community folder addons required for your currently planned flight.",
+  "author": "Devran",
+  "license": "UNLICENSED",
+  "main": "electron/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"npm:electron:dev\"",
+    "electron:dev": "wait-on tcp:5173 && cross-env NODE_ENV=development electron .",
+    "build": "vite build",
+    "dist": "npm run build && electron-builder",
+    "postinstall": "electron-builder install-app-deps",
+    "test": "vitest run",
+    "icons": "node scripts/generate-icon.mjs"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "framer-motion": "^11.3.19",
+    "lowdb": "^7.0.1",
+    "lucide-react": "^0.383.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^31.3.0",
+    "electron-builder": "^24.13.3",
+    "png-to-ico": "^2.1.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sharp": "^0.33.5",
+    "vite": "^5.4.1",
+    "vitest": "^2.1.9",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.devran.flightsync",
+    "productName": "FlightSync",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "!electron/**/*.test.js",
+      "node_modules/**/*",
+      "package.json",
+      "build/icon.ico"
+    ],
+    "win": {
+      "target": "nsis",
+      "requestedExecutionLevel": "asInvoker",
+      "icon": "build/icon.ico",
+      "artifactName": "FlightSync-Setup-${version}.exe",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "license": "LICENSE.txt"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "realoofran",
+      "repo": "flightsync"
+    }
+  }
+}

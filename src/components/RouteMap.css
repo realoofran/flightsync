@@ -1,0 +1,120 @@
+.route-map {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.route-map--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 420px;
+}
+.route-map--empty span {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.route-map__viewport {
+  position: relative;
+  overflow: hidden;
+  background: #0b1220;
+}
+
+.route-map__tile {
+  position: absolute;
+  user-select: none;
+  pointer-events: none;
+}
+/* Approximate a dark map style from OSM's standard (light) tiles via a CSS
+   filter — the well-known invert+hue-rotate trick — so it reads as part of
+   this app's dark theme rather than a bright rectangle punched into it. */
+[data-theme='dark'] .route-map__tile {
+  filter: invert(0.92) hue-rotate(180deg) brightness(0.95) contrast(0.92) saturate(0.7);
+}
+
+.route-map__overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.route-map__attribution {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font-size: 9.5px;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.route-map__path {
+  stroke: var(--green);
+  stroke-width: 2.5;
+  stroke-dasharray: 6 5;
+  filter: drop-shadow(0 0 6px var(--green-glow));
+}
+.route-map__path-glow {
+  stroke: var(--green);
+  stroke-width: 8;
+  stroke-opacity: 0.15;
+  filter: blur(3px);
+}
+
+.route-map__plane path {
+  fill: var(--text);
+  filter: drop-shadow(0 0 5px var(--green-glow));
+}
+
+.route-map__waypoint {
+  fill: var(--bg);
+  stroke: var(--text-faint);
+  stroke-width: 1.5;
+}
+
+.route-map__node--origin {
+  fill: var(--green);
+  filter: drop-shadow(0 0 8px var(--green-glow));
+}
+.route-map__node-ring {
+  fill: none;
+  stroke-width: 1.25;
+}
+.route-map__node-ring--origin {
+  stroke: var(--green);
+  opacity: 0.4;
+}
+.route-map__node-ring--pulse {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: mapRingPulse 2.4s ease-out infinite;
+}
+@keyframes mapRingPulse {
+  0% { transform: scale(0.7); opacity: 0.5; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+.route-map__node--dest {
+  fill: var(--amber);
+  filter: drop-shadow(0 0 8px var(--amber-glow));
+}
+
+.route-map__label {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: var(--text);
+  letter-spacing: 0.04em;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.7);
+  stroke-width: 3px;
+}

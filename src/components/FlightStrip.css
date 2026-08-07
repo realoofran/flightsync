@@ -1,0 +1,150 @@
+.strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background:
+    radial-gradient(ellipse 600px 260px at 0% 0%, rgba(0, 229, 160, 0.12), transparent 70%),
+    var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-left: 5px solid var(--green);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6) var(--space-6);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+/* Flag badge — a real SVG graphic (see FlagSwatch.jsx), not an emoji, shown
+   small and fully unmasked next to the callsign. Deliberately NOT a large
+   faded watermark: many real flags are dominated by one solid field color
+   (Turkey's is almost entirely red), so fading a large version down to a
+   sliver just reads as an unexplained color wash rather than a flag —
+   small and fully visible is the only way the actual pattern reads as a
+   flag at all. */
+.strip__flag-badge {
+  display: flex;
+  align-items: center;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+}
+
+.strip--empty {
+  border-left-color: var(--text-faint);
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-6);
+}
+.strip--empty span {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  font-size: var(--text-sm);
+}
+.strip__empty-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.strip--loading {
+  border-left-color: var(--amber);
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+}
+.strip--loading span {
+  font-family: var(--font-mono);
+  color: var(--amber);
+  letter-spacing: 0.1em;
+  font-size: var(--text-sm);
+}
+.strip__pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 12px var(--amber);
+  animation: pulse 1.1s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.strip__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.strip__callsign-block {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.strip__callsign {
+  font-family: var(--font-mono);
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  text-shadow: 0 0 40px rgba(0, 229, 160, 0.2);
+  line-height: 1;
+}
+
+.strip__route {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+}
+.strip__arrow {
+  color: var(--green);
+  font-size: var(--text-lg);
+}
+
+.strip__meta {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border-bright);
+  color: var(--text);
+}
+.tag--amber { color: var(--amber); border-color: rgba(255,176,0,0.35); background: var(--amber-dim); }
+.tag--muted { color: var(--text-muted); }
+
+.strip__refresh {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border-bright);
+  color: var(--text-muted);
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s, transform 0.2s;
+  flex-shrink: 0;
+}
+.strip__refresh:hover {
+  color: var(--cyan);
+  border-color: var(--cyan);
+  transform: rotate(90deg);
+}
