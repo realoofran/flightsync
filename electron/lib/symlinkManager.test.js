@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { computeSyncPlan, applySyncPlan } from './symlinkManager.js';
+import { computeSyncPlan, applySyncPlan, invertSyncEntry } from './symlinkManager.js';
 
 // computeSyncPlan/applySyncPlan are the only code in the app that writes into
 // the real Community folder, so this exercises them against real
@@ -91,5 +91,35 @@ describe('computeSyncPlan + applySyncPlan (real filesystem)', () => {
     expect(result.linked).toEqual([]);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].id).toBe(realFolderAddon.id);
+  });
+});
+
+// Pure logic — what "Undo last sync" replays. Deliberately no filesystem
+// here; applySyncPlan's own real-filesystem coverage above already proves
+// the plan shape it returns is executed correctly.
+describe('invertSyncEntry', () => {
+  const addonsById = {
+    a1: { id: 'a1', folderName: 'a1' },
+    a2: { id: 'a2', folderName: 'a2' },
+    a3: { id: 'a3', folderName: 'a3' },
+  };
+
+  it('swaps linked <-> unlinked to build the reverse plan', () => {
+    const entry = { linkedIds: ['a1', 'a2'], unlinkedIds: ['a3'] };
+    const plan = invertSyncEntry(entry, addonsById);
+    expect(plan.toLink.map(a => a.id)).toEqual(['a3']);
+    expect(plan.toUnlink.map(a => a.id)).toEqual(['a1', 'a2']);
+    expect(plan.unchanged).toEqual([]);
+  });
+
+  it('drops ids for addons no longer in the current library instead of erroring', () => {
+    const entry = { linkedIds: ['a1', 'deleted-addon'], unlinkedIds: [] };
+    const plan = invertSyncEntry(entry, addonsById);
+    expect(plan.toUnlink.map(a => a.id)).toEqual(['a1']);
+  });
+
+  it('handles missing linkedIds/unlinkedIds gracefully (older history entries)', () => {
+    const plan = invertSyncEntry({}, addonsById);
+    expect(plan).toEqual({ toLink: [], toUnlink: [], unchanged: [] });
   });
 });

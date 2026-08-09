@@ -24,12 +24,22 @@ export function AppSettingsProvider({ children }) {
     return updated;
   }, []);
 
+  // For flows that change settings through a DIFFERENT bridge call (e.g.
+  // importing a backup file, which merges server-side) rather than
+  // updateSettings' own patch — pulls the current values back in so the
+  // rest of the app (theme, language, etc.) picks up the change immediately.
+  const refreshSettings = useCallback(async () => {
+    const fresh = await bridge.settings.get();
+    setSettings(fresh);
+    return fresh;
+  }, []);
+
   const t = useCallback((key) => translate(settings?.language ?? 'en', key), [settings?.language]);
 
   if (!settings) return null;
 
   return (
-    <AppSettingsContext.Provider value={{ settings, updateSettings, t }}>
+    <AppSettingsContext.Provider value={{ settings, updateSettings, refreshSettings, t }}>
       {children}
     </AppSettingsContext.Provider>
   );

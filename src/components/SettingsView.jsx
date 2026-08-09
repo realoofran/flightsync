@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { FolderOpen, Sun, Moon, Wand2, RefreshCw, Download, CheckCircle2, Contrast } from 'lucide-react';
+import { useCallback, useState, useEffect } from 'react';
+import { FolderOpen, Sun, Moon, Wand2, RefreshCw, Download, CheckCircle2, Contrast, Upload, FileJson, Power } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getBridge } from '../lib/mockBridge.js';
 import { useAppSettings } from '../lib/AppSettingsContext.jsx';
@@ -10,10 +10,51 @@ import VaultDiagram from './VaultDiagram.jsx';
 const bridge = getBridge();
 
 export default function SettingsView() {
-  const { settings, updateSettings, t } = useAppSettings();
+  const { settings, updateSettings, refreshSettings, t } = useAppSettings();
   const { status, check, install } = useUpdater();
   const [detecting, setDetecting] = useState(false);
   const [detectFailed, setDetectFailed] = useState(false);
+  const [backupMessage, setBackupMessage] = useState(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [launchAtLogin, setLaunchAtLogin] = useState(null);
+
+  useEffect(() => {
+    bridge.app.getLaunchAtLogin().then(setLaunchAtLogin);
+  }, []);
+
+  const toggleLaunchAtLogin = useCallback(async (enabled) => {
+    setLaunchAtLogin(enabled); // optimistic — this is OS state, not a DB write that could fail mid-flight
+    await bridge.app.setLaunchAtLogin(enabled);
+  }, []);
+
+  const exportBackup = useCallback(async () => {
+    setBackupBusy(true);
+    setBackupMessage(null);
+    try {
+      const result = await bridge.settings.exportBackup();
+      if (result.ok) setBackupMessage({ kind: 'ok', text: `Saved to ${result.path}` });
+    } catch (err) {
+      setBackupMessage({ kind: 'error', text: err.message });
+    } finally {
+      setBackupBusy(false);
+    }
+  }, []);
+
+  const importBackup = useCallback(async () => {
+    setBackupBusy(true);
+    setBackupMessage(null);
+    try {
+      const result = await bridge.settings.importBackup();
+      if (result.ok) {
+        await refreshSettings();
+        setBackupMessage({ kind: 'ok', text: 'Settings imported.' });
+      }
+    } catch (err) {
+      setBackupMessage({ kind: 'error', text: err.message });
+    } finally {
+      setBackupBusy(false);
+    }
+  }, [refreshSettings]);
 
   const pick = useCallback(async (key, title) => {
     const folder = await bridge.dialog.pickFolder(title);
@@ -90,13 +131,36 @@ export default function SettingsView() {
       </section>
 
       <section className="settings-block">
-        <label className="settings-label">AI classification (optional)</label>
+        <label className="settings-label">VATSIM CID</label>
         <p className="settings-hint">
-          Your own <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">Anthropic API key</a> —
-          only used by the "Classify with AI" button in Library, for addons the built-in matching
-          couldn't identify on its own. Only folder/title names are sent, never file contents.
-          Stored locally on this machine, never bundled with the app. Leave blank to skip this
-          entirely — everything else works without it.
+          Optional — lets "Pull from VATSIM" in Route Sync grab your own live filed flight plan
+          straight from the network whenever you're connected, no SimBrief account needed. Uses
+          VATSIM's free public data feed; your CID is only used to find your own session in it and
+          is never sent anywhere else.
+        </p>
+        <div className="settings-row">
+          <input
+            defaultValue={settings.vatsimCid ?? ''}
+            placeholder="e.g. 1234567"
+            onBlur={(e) => updateSettings({ vatsimCid: e.target.value })}
+          />
+        </div>
+      </section>
+
+      <section className="settings-block">
+        <label className="settings-label">AI classification (optional — this costs real money)</label>
+        <p className="settings-hint">
+          <strong>FlightSync itself is free.</strong> This one feature is the exception: it calls
+          Anthropic's Claude API directly using your own API key, and <strong>Anthropic bills you
+          directly</strong> for it (typically a small fraction of a cent per addon with the model
+          used here, but it is not free). FlightSync takes no cut and never sees a payment — the
+          cost is entirely between you and Anthropic, get a key at{' '}
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>.
+          Only used by the "Classify with AI" button in Library, for addons the free built-in
+          matching couldn't identify on its own — only folder/title names are sent, never file
+          contents. Stored locally on this machine, never bundled with the app.{' '}
+          <strong>Leave this blank to skip it entirely</strong> — everything else in FlightSync,
+          including the rest of the addon matching, is completely free and works without it.
         </p>
         <div className="settings-row">
           <input
@@ -118,6 +182,66 @@ export default function SettingsView() {
           />
           {t('includeAlternates')}
         </label>
+      </section>
+
+      <section className="settings-block">
+        <label className="settings-row settings-row--checkbox">
+          <input
+            type="checkbox"
+            checked={settings.minimizeToTray}
+            onChange={(e) => updateSettings({ minimizeToTray: e.target.checked })}
+          />
+          Keep running in the system tray when the window is closed
+        </label>
+        <p className="settings-hint">
+          Off by default — closing the window quits FlightSync normally, same as any app. Turn
+          this on if you want it to keep syncing quietly in the background (tray icon has a quick
+          Rescan action) instead of closing when you click X.
+        </p>
+        {launchAtLogin !== null && (
+          <>
+            <label className="settings-row settings-row--checkbox" style={{ marginTop: 'var(--space-2)' }}>
+              <input
+                type="checkbox"
+                checked={launchAtLogin}
+                onChange={(e) => toggleLaunchAtLogin(e.target.checked)}
+              />
+              <Power size={13} style={{ marginRight: 4 }} /> Launch FlightSync when Windows starts
+            </label>
+            <p className="settings-hint">
+              Starts hidden in the tray (no window popping up on login) — pairs with "keep running
+              in the tray" above so MSFS launch detection is watching from the moment you sign in.
+              This is a Windows setting (Startup Apps), not saved in FlightSync's own config —
+              removing it from Task Manager's Startup tab works too.
+            </p>
+          </>
+        )}
+      </section>
+
+      <section className="settings-block">
+        <label className="settings-label">When MSFS 2024 launches</label>
+        <label className="settings-row settings-row--checkbox">
+          <input
+            type="checkbox"
+            checked={settings.notifyOnMsfsLaunch}
+            onChange={(e) => updateSettings({ notifyOnMsfsLaunch: e.target.checked })}
+          />
+          Notify me (on by default)
+        </label>
+        <label className="settings-row settings-row--checkbox">
+          <input
+            type="checkbox"
+            checked={settings.autoSyncOnLaunch}
+            onChange={(e) => updateSettings({ autoSyncOnLaunch: e.target.checked })}
+          />
+          Automatically apply the sync if a flight plan with pending changes is already loaded
+        </label>
+        <p className="settings-hint">
+          FlightSync watches for MSFS 2024 starting and can tell you (or, if you turn on
+          auto-apply, just handle it) right at the moment it matters — before the sim reads your
+          Community folder. Auto-apply only fires if you already have a route loaded in Route Sync
+          with changes waiting; it never invents a route on its own.
+        </p>
       </section>
 
       <section className="settings-block">
@@ -157,6 +281,28 @@ export default function SettingsView() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="settings-block">
+        <label className="settings-label">Backup &amp; restore</label>
+        <p className="settings-hint">
+          Save your settings (folders, SimBrief ID, theme, language) to a file, or restore them
+          later — handy before reinstalling Windows or moving to a new PC. Your Anthropic API key
+          is never included in the export; re-enter it after importing if you use AI classification.
+        </p>
+        <div className="settings-row">
+          <button className="btn btn--ghost btn--small" onClick={exportBackup} disabled={backupBusy}>
+            <FileJson size={13} /> Export settings
+          </button>
+          <button className="btn btn--ghost btn--small" onClick={importBackup} disabled={backupBusy}>
+            <Upload size={13} /> Import settings
+          </button>
+        </div>
+        {backupMessage && (
+          <p className={`settings-hint settings-hint--${backupMessage.kind === 'error' ? 'error' : 'ok'}`}>
+            {backupMessage.text}
+          </p>
+        )}
       </section>
 
       <section className="settings-block">

@@ -1,5 +1,5 @@
 // electron/main.js
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, Notification } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -8,17 +8,28 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-import { initDb, getDb, upsertScannedAddons, confirmAddonMatch, setAlwaysActive, recordSyncResult, updateSettings, applyAiClassifications } from './lib/db.js';
+import { initDb, getDb, upsertScannedAddons, confirmAddonMatch, setAlwaysActive, recordSyncResult, updateSettings, applyAiClassifications, recordFlight } from './lib/db.js';
 import { scanLibrary } from './lib/addonScanner.js';
-import { computeSyncPlan, applySyncPlan } from './lib/symlinkManager.js';
+import { computeSyncPlan, applySyncPlan, removeBrokenLink, invertSyncEntry } from './lib/symlinkManager.js';
 import { fetchLatestOfp } from './lib/simbriefClient.js';
 import { resolveRequiredAddons, findPendingConfirmations } from './lib/flightMatcher.js';
 import { classifyAddonsWithAI } from './lib/aiClassifier.js';
+import { computeAddonSizes } from './lib/diskUsage.js';
+import { isMsfsRunning } from './lib/processWatcher.js';
+import { fetchVatsimControllers, matchControllersForAirport, fetchVatsimPilotFlightPlan } from './lib/vatsimClient.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV === 'development';
+// Set on the login-item's launch args (see setLaunchAtLogin) — lets a
+// Windows-startup launch open straight into the tray instead of popping a
+// full window on every login, the same way Dropbox/Discord/etc. behave.
+// Safe regardless of the minimizeToTray setting: the tray itself is always
+// created (see setupTray), so there's always a way back to the window.
+const isHiddenLaunch = process.argv.includes('--hidden');
 
 let mainWindow = null;
+let tray = null;
+let isQuitting = false;
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
@@ -26,6 +37,7 @@ async function createWindow() {
     height: 960,
     minWidth: 1200,
     minHeight: 780,
+    show: !isHiddenLaunch,
     backgroundColor: '#0B0E14',
     icon: path.join(__dirname, '../build/icon.ico'),
     titleBarStyle: 'hidden',
@@ -55,19 +67,109 @@ async function createWindow() {
   } else {
     await mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
+
+  // Closing the window normally quits, same as any desktop app — UNLESS the
+  // user has explicitly opted into "keep running in the tray" in Settings
+  // (default off, so this never silently changes behavior nobody asked
+  // for). The tray icon itself always exists once the app is running (see
+  // setupTray) so its quick actions are available either way.
+  mainWindow.on('close', (event) => {
+    if (isQuitting) return;
+    const minimizeToTray = getDb()?.data?.settings?.minimizeToTray;
+    if (minimizeToTray && tray) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
+}
+
+function setupTray() {
+  if (tray) return;
+  try {
+    tray = new Tray(path.join(__dirname, '../build/icon.ico'));
+    tray.setToolTip('FlightSync');
+    const rebuildMenu = () => {
+      tray.setContextMenu(Menu.buildFromTemplate([
+        { label: 'Show FlightSync', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
+        {
+          label: 'Rescan Community',
+          click: async () => {
+            try {
+              const { settings } = getDb().data;
+              if (!settings.communityPath) return;
+              const { addons: scanned, warnings } = await scanLibrary(settings.communityPath, settings.vaultPath);
+              await upsertScannedAddons(scanned);
+              mainWindow?.webContents.send('library:rescanned', { addons: Object.values(getDb().data.addons), warnings });
+              notify('FlightSync', `Rescan complete — ${scanned.length} addon(s) found.`);
+            } catch (err) {
+              notify('FlightSync — rescan failed', err.message);
+            }
+          },
+        },
+        { type: 'separator' },
+        { label: 'Quit FlightSync', click: () => { isQuitting = true; app.quit(); } },
+      ]));
+    };
+    rebuildMenu();
+    tray.on('click', () => { mainWindow?.show(); mainWindow?.focus(); });
+  } catch (err) {
+    console.error('[FlightSync] Tray failed to initialize (app continues normally without it):', err.message);
+  }
+}
+
+/** Best-effort native OS notification — never lets a notification failure affect anything else. */
+function notify(title, body) {
+  try {
+    if (Notification.isSupported()) new Notification({ title, body }).show();
+  } catch {
+    // Non-critical.
+  }
+}
+
+const MSFS_POLL_INTERVAL_MS = 10000;
+let msfsWasRunning = false;
+
+/**
+ * Polls for MSFS 2024 starting up — the whole point of this app is having
+ * the right addons linked BEFORE the sim reads Community, so catching the
+ * moment it launches is the highest-value place to remind (or, opted-in,
+ * act on) that. Only fires on the false->true transition, never while
+ * already running, so it can't spam a notification every poll.
+ */
+function setupMsfsWatcher() {
+  if (process.platform !== 'win32') return;
+  setInterval(async () => {
+    const running = await isMsfsRunning();
+    if (running && !msfsWasRunning) {
+      const { notifyOnMsfsLaunch } = getDb()?.data?.settings ?? {};
+      mainWindow?.webContents.send('msfs:launched');
+      if (notifyOnMsfsLaunch !== false) {
+        notify('MSFS 2024 is launching', 'Open FlightSync to make sure the right addons are linked.');
+      }
+    }
+    msfsWasRunning = running;
+  }, MSFS_POLL_INTERVAL_MS);
 }
 
 app.whenReady().then(async () => {
   await initDb(app.getPath('userData'));
   await createWindow();
+  setupTray();
   setupAutoUpdater();
+  setupMsfsWatcher();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    else mainWindow?.show();
   });
 });
 
+app.on('before-quit', () => { isQuitting = true; });
+
 app.on('window-all-closed', () => {
+  // Doesn't fire while minimizeToTray keeps the window alive-but-hidden
+  // (see the window's own 'close' handler in createWindow) — only once the
+  // window is genuinely destroyed, so this remains a safe unconditional quit.
   if (process.platform !== 'darwin') app.quit();
 });
 
@@ -120,7 +222,10 @@ async function setupAutoUpdater() {
     autoUpdater.on('update-available', (info) => send({ state: 'available', version: info.version }));
     autoUpdater.on('update-not-available', () => send({ state: 'up-to-date' }));
     autoUpdater.on('download-progress', (progress) => send({ state: 'downloading', percent: Math.round(progress.percent) }));
-    autoUpdater.on('update-downloaded', (info) => send({ state: 'ready', version: info.version }));
+    autoUpdater.on('update-downloaded', (info) => {
+      send({ state: 'ready', version: info.version });
+      notify('FlightSync update ready', `Version ${info.version} downloaded — restart to install.`);
+    });
     autoUpdater.on('error', (err) => send({ state: 'error', message: err.message }));
 
     // Check once, shortly after launch — delayed so it never competes with
@@ -159,6 +264,64 @@ ipcMain.handle('updater:install', async () => {
 
 ipcMain.handle('settings:get', () => getDb().data.settings);
 ipcMain.handle('settings:update', (_e, patch) => updateSettings(patch));
+
+// Launch-at-login is OS state (Windows' own Startup registry key, managed
+// via Electron's login-item API), not app state — deliberately NOT mirrored
+// into settings.json, so it can never drift out of sync with what Windows
+// actually has configured (e.g. if the user removes it by hand from Task
+// Manager's Startup tab). The renderer always reads the live OS value.
+ipcMain.handle('app:getLaunchAtLogin', () => app.getLoginItemSettings().openAtLogin);
+ipcMain.handle('app:setLaunchAtLogin', (_e, enabled) => {
+  app.setLoginItemSettings({ openAtLogin: enabled, args: enabled ? ['--hidden'] : [] });
+});
+
+const BACKUP_FORMAT_VERSION = 1;
+
+ipcMain.handle('settings:exportBackup', async () => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Export FlightSync settings',
+    defaultPath: `flightsync-settings-${new Date().toISOString().slice(0, 10)}.json`,
+    filters: [{ name: 'FlightSync backup', extensions: ['json'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false };
+
+  // aiApiKey is deliberately excluded — this file is meant to be portable
+  // (backed up, moved to a new PC, maybe even shared for troubleshooting),
+  // and a plaintext API key has no business riding along in it.
+  const { aiApiKey: _omit, ...safeSettings } = getDb().data.settings;
+  const payload = {
+    formatVersion: BACKUP_FORMAT_VERSION,
+    exportedAt: new Date().toISOString(),
+    settings: safeSettings,
+  };
+  await fs.writeFile(result.filePath, JSON.stringify(payload, null, 2), 'utf-8');
+  return { ok: true, path: result.filePath };
+});
+
+ipcMain.handle('settings:importBackup', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Import FlightSync settings',
+    properties: ['openFile'],
+    filters: [{ name: 'FlightSync backup', extensions: ['json'] }],
+  });
+  if (result.canceled || !result.filePaths[0]) return { ok: false };
+
+  let payload;
+  try {
+    payload = JSON.parse(await fs.readFile(result.filePaths[0], 'utf-8'));
+  } catch {
+    throw new Error('That file isn\'t valid JSON — is it actually a FlightSync settings export?');
+  }
+  if (!payload || typeof payload.settings !== 'object' || payload.settings === null) {
+    throw new Error('That file doesn\'t look like a FlightSync settings export (missing "settings").');
+  }
+
+  // Never let an imported file blindly overwrite the current API key —
+  // exports never contain one, but a hand-edited or unrelated file might.
+  const { aiApiKey: _omit, ...importedSettings } = payload.settings;
+  const settings = await updateSettings(importedSettings);
+  return { ok: true, settings };
+});
 
 ipcMain.handle('dialog:pickFolder', async (_e, { title }) => {
   const result = await dialog.showOpenDialog(mainWindow, {
@@ -352,6 +515,15 @@ ipcMain.handle('library:scan', async () => {
 
 ipcMain.handle('library:list', () => Object.values(getDb().data.addons));
 
+ipcMain.handle('library:removeBrokenLink', async (_e, { path: targetPath }) => {
+  await removeBrokenLink(targetPath);
+});
+
+ipcMain.handle('library:getFolderSizes', async () => {
+  const addons = Object.values(getDb().data.addons);
+  return computeAddonSizes(addons);
+});
+
 ipcMain.handle('addon:confirmMatch', (_e, { id, patch }) => confirmAddonMatch(id, patch));
 ipcMain.handle('addon:setAlwaysActive', (_e, { id, value }) => setAlwaysActive(id, value));
 
@@ -403,8 +575,73 @@ ipcMain.handle('sync:apply', async (_e, { syncPlan }) => {
     linkedCount: result.linked.length,
     unlinkedCount: result.unlinked.length,
     errorCount: result.errors.length,
+    // The actual id lists (not just counts) are what makes "Undo last sync"
+    // possible — see sync:undo below, which just replays these two lists
+    // swapped.
+    linkedIds: result.linked,
+    unlinkedIds: result.unlinked,
   });
+  // Notifications matter most exactly when the window ISN'T focused (tray
+  // rescan, or the user alt-tabbed to MSFS already) — that's the case a
+  // status banner in the window can't reach.
+  if (!mainWindow?.isFocused()) {
+    notify(
+      'FlightSync sync complete',
+      `Linked ${result.linked.length}, unlinked ${result.unlinked.length}` +
+        (result.errors.length > 0 ? `, ${result.errors.length} error(s)` : '') + '.',
+    );
+  }
   return result;
 });
 
 ipcMain.handle('sync:history', () => getDb().data.syncHistory);
+
+ipcMain.handle('flightLog:record', (_e, entry) => recordFlight(entry));
+ipcMain.handle('flightLog:list', () => getDb().data.flightLog);
+
+ipcMain.handle('vatsim:getAtcStatus', async (_e, { icaos }) => {
+  const controllers = await fetchVatsimControllers();
+  const result = {};
+  for (const icao of icaos ?? []) {
+    if (!icao) continue;
+    result[icao] = matchControllersForAirport(icao, controllers);
+  }
+  return result;
+});
+
+ipcMain.handle('vatsim:fetchMyFlightPlan', async () => {
+  const { vatsimCid } = getDb().data.settings;
+  if (!vatsimCid) throw new Error('Set your VATSIM CID in Settings first.');
+
+  const plan = await fetchVatsimPilotFlightPlan(vatsimCid);
+  if (!plan) {
+    throw new Error(
+      "No filed flight plan found for that CID on VATSIM right now — connect with your VATSIM " +
+      'client and file a flight plan first, or use SimBrief/manual entry instead.',
+    );
+  }
+  return plan;
+});
+
+ipcMain.handle('sync:undo', async () => {
+  const { communityPath } = getDb().data.settings;
+  if (!communityPath) throw new Error('Set your MSFS Community folder in Settings first.');
+
+  const { data } = getDb();
+  const lastEntry = data.syncHistory[0];
+  if (!lastEntry) throw new Error('No sync to undo.');
+  if (!lastEntry.linkedIds && !lastEntry.unlinkedIds) {
+    throw new Error('This sync happened before undo support existed — nothing recorded to reverse.');
+  }
+
+  const result = await applySyncPlan(communityPath, invertSyncEntry(lastEntry, data.addons));
+  await recordSyncResult({
+    linkedCount: result.linked.length,
+    unlinkedCount: result.unlinked.length,
+    errorCount: result.errors.length,
+    linkedIds: result.linked,
+    unlinkedIds: result.unlinked,
+    isUndo: true,
+  });
+  return result;
+});

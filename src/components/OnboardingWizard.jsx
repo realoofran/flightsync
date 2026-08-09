@@ -172,11 +172,19 @@ export default function OnboardingWizard() {
             <motion.div key="scan" className="onboarding__step" {...stepMotion}>
               <h2>First scan</h2>
               {!scanResult && (
-                <p className="onboarding__hint">
-                  FlightSync will look through your Community folder, move any addons it finds
-                  into a hidden vault next to it, and link them straight back — MSFS won't see
-                  any difference. Nothing is ever deleted.
-                </p>
+                <>
+                  <p className="onboarding__hint">
+                    FlightSync will look through your Community folder, move any addons it finds
+                    into a vault folder next to it, and link them straight back — MSFS won't see
+                    any difference. Nothing is ever deleted.
+                  </p>
+                  <p className="onboarding__hint onboarding__hint--warn">
+                    Important: that vault folder becomes the ONLY real copy of those addons — the
+                    Community folder will just hold links to it. Never delete or move the vault
+                    folder itself; that permanently removes whatever's inside it from MSFS. (Every
+                    vault folder has a README inside explaining this too.)
+                  </p>
+                </>
               )}
 
               {scanError && <div className="banner banner--error">{scanError}</div>}

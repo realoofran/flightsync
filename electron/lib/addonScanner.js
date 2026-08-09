@@ -26,11 +26,27 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { extractIcaoCodes, resolveConfidentIcao } from './icaoDatabase.js';
 import { regionForIcao } from './icaoRegions.js';
 import { CONTENT_TYPES } from './contentTypes.js';
 
+const execFileAsync = promisify(execFile);
 const MAX_SCAN_DEPTH = 10;
+const VAULT_README_NAME = 'README - DO NOT DELETE THIS FOLDER.txt';
+const VAULT_README_TEXT = `This folder holds the REAL files for every addon FlightSync manages.
+
+The copies you see in your MSFS Community folder are just links pointing
+back here. There is no other copy anywhere else — deleting or moving this
+folder permanently deletes those addons from Microsoft Flight Simulator.
+
+If you want to stop FlightSync managing a specific addon, do it from
+within FlightSync (or move that one addon's folder back into Community by
+hand) — don't touch this folder directly unless you mean to.
+
+Safe to otherwise ignore. FlightSync manages everything in here on its own.
+`;
 
 /**
  * @param {string} communityPath  the user's real, single MSFS Community folder
@@ -39,6 +55,7 @@ const MAX_SCAN_DEPTH = 10;
  */
 export async function scanLibrary(communityPath, vaultPath) {
   await fs.mkdir(vaultPath, { recursive: true });
+  await protectVaultFolder(vaultPath);
 
   const warnings = [];
   await migrateRealFolders(communityPath, vaultPath, [], 0, warnings);
@@ -47,6 +64,34 @@ export async function scanLibrary(communityPath, vaultPath) {
   await walkVault(vaultPath, vaultPath, [], addons, 0, warnings);
   markNameConflicts(addons, warnings);
   return { addons, warnings };
+}
+
+/**
+ * Best-effort safety net so a normal user doesn't stumble on the vault and
+ * delete it thinking it's disposable app clutter — confirmed real user
+ * confusion, not a hypothetical. Two things: (1) a README dropped inside
+ * the vault itself, so the warning travels with the folder even if it's
+ * found by browsing rather than reading the app; (2) on Windows, mark it
+ * Hidden — but ONLY when it's FlightSync's own auto-created default
+ * location (named ".flightsync-vault"), never when the user has pointed
+ * the vault at a folder they already own and browse directly (e.g. an
+ * existing addon library on another drive) — hiding someone's own folder
+ * out from under them would be far more surprising than helpful.
+ */
+async function protectVaultFolder(vaultPath) {
+  try {
+    await fs.writeFile(path.join(vaultPath, VAULT_README_NAME), VAULT_README_TEXT);
+  } catch {
+    // Non-critical — never let a README write failure break scanning.
+  }
+
+  if (process.platform === 'win32' && path.basename(vaultPath) === '.flightsync-vault') {
+    try {
+      await execFileAsync('attrib', ['+h', vaultPath]);
+    } catch {
+      // Non-critical — hiding the folder is a nice-to-have, not required.
+    }
+  }
 }
 
 // MSFS's Community folder can only hold one folder per name. Two addons
@@ -73,23 +118,27 @@ function markNameConflicts(addons, warnings) {
 }
 
 /**
- * @returns {Promise<boolean>} true if this folder (or something inside it)
- *   was recognized as an addon and migrated/already-managed. Used to detect
- *   "dead" subtrees — real folders with real content that never resolve to
- *   an addon anywhere inside them (see the dead-end check below).
+ * @returns {Promise<{foundAny: boolean, noManifestWarnings: object[]}>}
+ *   foundAny: true if this folder (or something inside it) was recognized
+ *   as an addon and migrated/already-managed — used to detect "dead"
+ *   subtrees (see the dead-end check below). noManifestWarnings: the
+ *   'no-manifest' warning objects (if any) this subtree has contributed to
+ *   the shared `warnings` array so far — a parent whose ENTIRE subtree is
+ *   dead can supersede/remove these in favor of its own single, broader
+ *   warning instead of reporting the same dead-end at multiple depths.
  */
 async function migrateRealFolders(dir, vaultPath, categoryChain, depth, warnings) {
   if (depth > MAX_SCAN_DEPTH) {
     warnings.push({ path: dir, code: 'depth-limit', message: `Nested more than ${MAX_SCAN_DEPTH} levels deep` });
-    return false;
+    return { foundAny: false, noManifestWarnings: [] };
   }
 
   let entries;
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
   } catch (err) {
-    warnings.push({ path: dir, code: 'read-error', message: err.code ?? err.message });
-    return false;
+    warnings.push(await describeReadError(dir, err));
+    return { foundAny: false, noManifestWarnings: [] };
   }
 
   const isAddonRoot = entries.some(e => e.isFile() && (e.name === 'manifest.json' || e.name === 'layout.json'));
@@ -102,20 +151,22 @@ async function migrateRealFolders(dir, vaultPath, categoryChain, depth, warnings
       }
     } catch (err) {
       warnings.push({ path: dir, code: 'migrate-error', message: err.code ?? err.message });
-      return false;
+      return { foundAny: false, noManifestWarnings: [] };
     }
-    return true; // never recurse into an addon's own internals
+    return { foundAny: true, noManifestWarnings: [] }; // never recurse into an addon's own internals
   }
 
   const subEntries = entries.filter(e => !e.name.startsWith('.') && (e.isDirectory() || e.isSymbolicLink()));
   let foundAny = false;
+  const childNoManifestWarnings = [];
   for (const entry of subEntries) {
     // Symlinked category folders (unusual, but possible) still need
     // descending into — check isDirectory() OR isSymbolicLink() so we don't
     // silently stop at a link the way a naive isDirectory()-only check would
     // (Dirent reports the link's own type, not what it resolves to).
-    const found = await migrateRealFolders(path.join(dir, entry.name), vaultPath, [...categoryChain, entry.name], depth + 1, warnings);
-    foundAny = foundAny || found;
+    const result = await migrateRealFolders(path.join(dir, entry.name), vaultPath, [...categoryChain, entry.name], depth + 1, warnings);
+    foundAny = foundAny || result.foundAny;
+    childNoManifestWarnings.push(...result.noManifestWarnings);
   }
 
   // Dead-end: this folder has real content but nothing anywhere inside it
@@ -127,10 +178,53 @@ async function migrateRealFolders(dir, vaultPath, categoryChain, depth, warnings
   // Community/Category/Addon, the two real-world layouts) so a single dead
   // folder doesn't produce one warning per nested subfolder inside it.
   if (!foundAny && depth > 0 && depth <= 2 && (subEntries.length > 0 || entries.some(e => e.isFile()))) {
-    warnings.push({ path: dir, code: 'no-manifest', message: 'No manifest.json/layout.json anywhere inside' });
+    // This folder's entire subtree is dead — remove any more specific
+    // child-level warnings already queued underneath it (e.g. a _CVT_
+    // folder whose only child is an empty SIMOBJECTS folder). This
+    // message already says "anywhere inside", so keeping both would just
+    // double-count the exact same one broken/incomplete install as two
+    // separate warnings.
+    for (const w of childNoManifestWarnings) {
+      const idx = warnings.indexOf(w);
+      if (idx !== -1) warnings.splice(idx, 1);
+    }
+    const warning = { path: dir, code: 'no-manifest', message: 'No manifest.json/layout.json anywhere inside' };
+    warnings.push(warning);
+    return { foundAny: false, noManifestWarnings: [warning] };
   }
 
-  return foundAny;
+  return { foundAny, noManifestWarnings: childNoManifestWarnings };
+}
+
+/**
+ * A plain ENOENT on readdir is ambiguous — could be a permissions issue, a
+ * race with another process, or (very commonly in practice, confirmed
+ * against a real library) a dangling junction whose target folder was
+ * moved, renamed, or deleted from outside FlightSync (e.g. reorganizing an
+ * Addons-Linker-style external library). Distinguish the last case and name
+ * the actual dead target so the user knows exactly what broke, instead of a
+ * bare "ENOENT".
+ */
+async function describeReadError(dir, err) {
+  if (err.code === 'ENOENT') {
+    try {
+      const stat = await fs.lstat(dir);
+      if (stat.isSymbolicLink()) {
+        const target = await fs.readlink(dir).catch(() => null);
+        return {
+          path: dir,
+          code: 'broken-link',
+          message: target
+            ? `Points to "${target}", which no longer exists — moved, renamed, or deleted outside FlightSync.`
+            : 'Its target folder no longer exists — moved, renamed, or deleted outside FlightSync.',
+        };
+      }
+    } catch {
+      // dir itself is gone too (e.g. deleted between the parent's readdir
+      // and this call) — fall through to the generic message below.
+    }
+  }
+  return { path: dir, code: 'read-error', message: err.code ?? err.message };
 }
 
 async function migrateOneFolder(realPath, vaultPath, warnings) {
@@ -146,7 +240,10 @@ async function migrateOneFolder(realPath, vaultPath, warnings) {
         await fs.cp(realPath, vaultTarget, { recursive: true });
         await fs.rm(realPath, { recursive: true, force: true });
       } else {
-        warnings.push({ path: realPath, code: 'migrate-error', message: err.code ?? err.message });
+        const message = err.code === 'EBUSY'
+          ? 'In use by another program (MSFS, SimBridge, or an antivirus scan?) — close it and rescan.'
+          : (err.code ?? err.message);
+        warnings.push({ path: realPath, code: 'migrate-error', message });
         return;
       }
     }
@@ -167,7 +264,7 @@ async function walkVault(absoluteDir, vaultRoot, categoryChain, results, depth, 
   try {
     entries = await fs.readdir(absoluteDir, { withFileTypes: true });
   } catch (err) {
-    warnings.push({ path: absoluteDir, code: 'read-error', message: err.code ?? err.message });
+    warnings.push(await describeReadError(absoluteDir, err));
     return;
   }
 

@@ -127,6 +127,41 @@ async function removeLink(communityPath, addon) {
  * are currently present there as a symlink pointing back into the library.
  * @returns {Promise<Set<string>>} set of addon ids
  */
+/**
+ * Removes a single dangling junction/symlink at an exact path — used to
+ * clean up broken links discovered during a scan (a Community-folder entry
+ * whose target folder was moved, renamed, or deleted from outside
+ * FlightSync, so it never became a tracked Addon in the first place; see
+ * addonScanner.js's 'broken-link' warnings). Verifies the path is actually
+ * a link before touching it — refuses to delete a real directory even if
+ * called with a wrong/stale path.
+ */
+export async function removeBrokenLink(absolutePath) {
+  const existing = await lstatSafe(absolutePath);
+  if (!existing) return; // already gone, nothing to do
+  if (!existing.isSymbolicLink()) {
+    throw new Error(`"${absolutePath}" is a real folder, not a link — refusing to delete it.`);
+  }
+  await fs.unlink(absolutePath);
+}
+
+/**
+ * Builds the inverse of a previously-applied sync from its recorded id
+ * lists — what "Undo last sync" replays through applySyncPlan. Missing
+ * addons (deleted, renamed, or re-scanned away since the original sync)
+ * are silently dropped rather than erroring the whole undo — there's
+ * nothing sensible left to reverse for a folder that no longer exists.
+ *
+ * @param {{linkedIds?: string[], unlinkedIds?: string[]}} historyEntry
+ * @param {Record<string, Addon>} addonsById  current library, keyed by id
+ * @returns {SyncPlan}
+ */
+export function invertSyncEntry(historyEntry, addonsById) {
+  const toLink = (historyEntry.unlinkedIds ?? []).map(id => addonsById[id]).filter(Boolean);
+  const toUnlink = (historyEntry.linkedIds ?? []).map(id => addonsById[id]).filter(Boolean);
+  return { toLink, toUnlink, unchanged: [] };
+}
+
 async function getManagedLinks(communityPath, knownAddons) {
   const byFolderName = new Map(knownAddons.map(a => [a.folderName, a]));
   const linkedIds = new Set();

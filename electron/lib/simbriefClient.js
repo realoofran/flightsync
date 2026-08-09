@@ -100,6 +100,7 @@ export async function fetchLatestOfp(pilotIdOrUsername) {
     airlineIcao: data?.general?.icao_airline || null,
     callsign,
     fetchedAt: new Date().toISOString(),
+    source: 'simbrief',
     originCoord,
     destinationCoord,
     routePoints,

@@ -1,5 +1,8 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { getBridge } from './mockBridge.js';
+import { useAppSettings } from './AppSettingsContext.jsx';
+import { distanceForRoute } from './greatCircle.js';
+import airportCoords from './airportCoords.json';
 
 const bridge = getBridge();
 const SyncStateContext = createContext(null);
@@ -14,6 +17,7 @@ const SyncStateContext = createContext(null);
  * survives tab switches.
  */
 export function SyncStateProvider({ children }) {
+  const { settings } = useAppSettings();
   const [plan, setPlan] = useState(null);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [manualEntry, setManualEntry] = useState(false);
@@ -22,9 +26,18 @@ export function SyncStateProvider({ children }) {
   const [applyResult, setApplyResult] = useState(null);
   const [error, setError] = useState(null);
   const [lastSync, setLastSync] = useState(null);
+  const [msfsLaunched, setMsfsLaunched] = useState(false);
 
   useEffect(() => {
     bridge.sync.history().then(h => setLastSync(h?.[0] ?? null));
+  }, []);
+
+  // For a sync applied (or undone) from somewhere other than this
+  // provider's own applySync — currently just HistoryView's "Undo" button —
+  // so the sidebar's "last sync" readout doesn't go stale after it.
+  const refreshLastSync = useCallback(async () => {
+    const h = await bridge.sync.history();
+    setLastSync(h?.[0] ?? null);
   }, []);
 
   const pullFromSimbrief = useCallback(async () => {
@@ -33,6 +46,22 @@ export function SyncStateProvider({ children }) {
     setApplyResult(null);
     try {
       const fetched = await bridge.simbrief.fetchLatest();
+      setPlan(fetched);
+      const p = await bridge.sync.preview(fetched);
+      setPreview(p);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingPlan(false);
+    }
+  }, []);
+
+  const pullFromVatsim = useCallback(async () => {
+    setLoadingPlan(true);
+    setError(null);
+    setApplyResult(null);
+    try {
+      const fetched = await bridge.vatsim.fetchMyFlightPlan();
       setPlan(fetched);
       const p = await bridge.sync.preview(fetched);
       setPreview(p);
@@ -72,18 +101,51 @@ export function SyncStateProvider({ children }) {
         unlinkedCount: result.unlinked.length,
         errorCount: result.errors.length,
       });
+      // Log the flight once Community is set up to fly it — a route synced
+      // twice with nothing left to change still counts, so this isn't
+      // gated on linked/unlinked counts, only on there being a plan at all
+      // (undo, triggered from HistoryView, never goes through this path).
+      if (plan) {
+        bridge.flightLog.record({
+          origin: plan.origin,
+          destination: plan.destination,
+          aircraftIcao: plan.aircraftIcao,
+          airlineIcao: plan.airlineIcao ?? null,
+          callsign: plan.callsign ?? null,
+          distanceNm: plan.ofp?.distanceNm ?? distanceForRoute(plan.origin, plan.destination, airportCoords),
+        });
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setApplying(false);
     }
-  }, [preview]);
+  }, [preview, plan]);
+
+  // "Latest" ref so the one-time msfs:launched subscription below always
+  // sees current preview/settings/applySync without having to tear down
+  // and resubscribe the IPC listener on every render.
+  const latestRef = useRef();
+  latestRef.current = { preview, applySync, autoSyncOnLaunch: settings.autoSyncOnLaunch };
+
+  useEffect(() => {
+    const unsubscribe = bridge.msfs.onLaunched(() => {
+      setMsfsLaunched(true);
+      const { preview: p, applySync: apply, autoSyncOnLaunch } = latestRef.current;
+      const pendingChanges = (p?.syncPlan.toLink.length ?? 0) + (p?.syncPlan.toUnlink.length ?? 0);
+      if (autoSyncOnLaunch && p && pendingChanges > 0) {
+        apply();
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   return (
     <SyncStateContext.Provider
       value={{
-        plan, loadingPlan, manualEntry, preview, applying, applyResult, error, lastSync,
-        setManualEntry, pullFromSimbrief, submitManualPlan, applySync,
+        plan, loadingPlan, manualEntry, preview, applying, applyResult, error, lastSync, msfsLaunched,
+        setManualEntry, pullFromSimbrief, pullFromVatsim, submitManualPlan, applySync, refreshLastSync,
+        dismissMsfsLaunched: () => setMsfsLaunched(false),
       }}
     >
       {children}

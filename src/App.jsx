@@ -1,11 +1,7 @@
-import { useState, useEffect } from 'react';
-import { PlaneTakeoff, Boxes, Settings2, History, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { PlaneTakeoff, Boxes, Settings2, History, AlertTriangle, Search, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SyncView from './components/SyncView.jsx';
-import LibraryView from './components/LibraryView.jsx';
-import SettingsView from './components/SettingsView.jsx';
-import HistoryView from './components/HistoryView.jsx';
-import OnboardingWizard from './components/OnboardingWizard.jsx';
 import Logo from './components/Logo.jsx';
 import AddonBreakdown from './components/AddonBreakdown.jsx';
 import UpdateIndicator from './components/UpdateIndicator.jsx';
@@ -14,12 +10,24 @@ import { useAppSettings } from './lib/AppSettingsContext.jsx';
 import { useSyncState } from './lib/SyncStateContext.jsx';
 import { relativeTime } from './lib/timeFormat.js';
 
+// Split out of the initial bundle — Vite flagged the single-chunk build as
+// >500kB every build this session. SyncView stays eager (it's the default
+// tab, always needed on first paint); everything below is either a
+// less-common tab or only needed after a user action (Ctrl+K, first run).
+const LibraryView = lazy(() => import('./components/LibraryView.jsx'));
+const SettingsView = lazy(() => import('./components/SettingsView.jsx'));
+const HistoryView = lazy(() => import('./components/HistoryView.jsx'));
+const InsightsView = lazy(() => import('./components/InsightsView.jsx'));
+const OnboardingWizard = lazy(() => import('./components/OnboardingWizard.jsx'));
+const CommandPalette = lazy(() => import('./components/CommandPalette.jsx'));
+
 const bridge = getBridge();
 
 export default function App() {
   const { t, settings } = useAppSettings();
   const { plan, lastSync } = useSyncState();
   const [tab, setTab] = useState('sync');
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [stats, setStats] = useState(null);
   const [recentSyncs, setRecentSyncs] = useState([]);
   const preloadBroken = isPreloadBroken();
@@ -32,8 +40,30 @@ export default function App() {
     { id: 'sync', label: t('tabSync'), icon: PlaneTakeoff },
     { id: 'library', label: t('tabLibrary'), icon: Boxes },
     { id: 'history', label: t('tabHistory'), icon: History },
+    { id: 'insights', label: t('tabInsights'), icon: BarChart3 },
     { id: 'settings', label: t('tabSettings'), icon: Settings2 },
   ];
+
+  // Ctrl/Cmd+1-4 jump straight to a tab, Ctrl/Cmd+K opens the command
+  // palette — a Ctrl-held combo can't collide with normal typing, so no
+  // need to check what's focused first.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        setPaletteOpen(v => !v);
+        return;
+      }
+      const index = Number(e.key) - 1;
+      if (index >= 0 && index < TABS.length) {
+        e.preventDefault();
+        setTab(TABS[index].id);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [t]);
 
   useEffect(() => {
     bridge.library.list().then(addons => {
@@ -54,7 +84,9 @@ export default function App() {
     return (
       <div className="app-frame">
         <div className="titlebar-drag" />
-        <OnboardingWizard />
+        <Suspense fallback={null}>
+          <OnboardingWizard />
+        </Suspense>
       </div>
     );
   }
@@ -69,7 +101,7 @@ export default function App() {
         </div>
 
         <nav className="topbar__nav">
-          {TABS.map(t2 => {
+          {TABS.map((t2, i) => {
             const Icon = t2.icon;
             const active = tab === t2.id;
             return (
@@ -77,6 +109,7 @@ export default function App() {
                 key={t2.id}
                 className={`topbar__nav-tab ${active ? 'topbar__nav-tab--active' : ''}`}
                 onClick={() => setTab(t2.id)}
+                title={`${t2.label} (Ctrl+${i + 1})`}
               >
                 {active && (
                   <motion.span
@@ -93,6 +126,9 @@ export default function App() {
         </nav>
 
         <div className="topbar__meta">
+          <button className="topbar__command-hint" onClick={() => setPaletteOpen(true)} title="Command palette" aria-label="Open command palette">
+            <Search size={12} /> <span>Ctrl+K</span>
+          </button>
           <span className="topbar__utc">{utcTime}Z</span>
           <UpdateIndicator />
         </div>
@@ -168,14 +204,24 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             >
-              {tab === 'sync' && <SyncView />}
-              {tab === 'library' && <LibraryView />}
-              {tab === 'history' && <HistoryView />}
-              {tab === 'settings' && <SettingsView />}
+              <Suspense fallback={<div className="view-loading" />}>
+                {tab === 'sync' && <SyncView />}
+                {tab === 'library' && <LibraryView />}
+                {tab === 'history' && <HistoryView />}
+                {tab === 'insights' && <InsightsView />}
+                {tab === 'settings' && <SettingsView />}
+              </Suspense>
             </motion.div>
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Always mounted (not gated on paletteOpen) — CommandPalette's own
+          AnimatePresence needs to stay mounted across open/close to run its
+          exit-fade; only the *chunk* is lazy, not the open/close lifecycle. */}
+      <Suspense fallback={null}>
+        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} setTab={setTab} />
+      </Suspense>
     </div>
   );
 }

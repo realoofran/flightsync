@@ -8,11 +8,59 @@ let tmpDir;
 
 beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'flightsync-db-test-'));
-  await initDb(tmpDir);
 });
 
 afterEach(async () => {
   await fs.rm(tmpDir, { recursive: true, force: true });
+});
+
+describe('initDb — settings migration', () => {
+  it('backfills settings fields added after a db.json was first written, without touching existing values', async () => {
+    // Simulates a real pre-v1.0.0 db.json on disk: predates aiApiKey,
+    // minimizeToTray, notifyOnMsfsLaunch, autoSyncOnLaunch, and
+    // onboardingComplete entirely — confirmed against the user's actual
+    // %APPDATA%\FlightSync\flightsync-db.json, which was missing exactly
+    // these fields and silently reading as undefined everywhere they were
+    // used.
+    const file = path.join(tmpDir, 'flightsync-db.json');
+    await fs.writeFile(file, JSON.stringify({
+      settings: {
+        communityPath: 'D:\\MSFS\\Community',
+        vaultPath: 'D:\\MSFS\\.flightsync-vault',
+        simbriefPilotId: '12345',
+        includeAlternates: false,
+        theme: 'light',
+        language: 'de',
+      },
+      addons: {},
+      syncHistory: [],
+    }));
+
+    const db = await initDb(tmpDir);
+
+    // New fields backfilled from DEFAULT_DATA.
+    expect(db.data.settings.aiApiKey).toBeNull();
+    expect(db.data.settings.minimizeToTray).toBe(false);
+    expect(db.data.settings.notifyOnMsfsLaunch).toBe(true);
+    expect(db.data.settings.autoSyncOnLaunch).toBe(false);
+    expect(db.data.flightLog).toEqual([]);
+
+    // Existing values on disk are never overwritten by the backfill.
+    expect(db.data.settings.communityPath).toBe('D:\\MSFS\\Community');
+    expect(db.data.settings.includeAlternates).toBe(false);
+    expect(db.data.settings.theme).toBe('light');
+    expect(db.data.settings.language).toBe('de');
+
+    // Special-cased migration: a pre-existing communityPath means this user
+    // was already using the app before onboardingComplete existed, so they
+    // must NOT be sent back through the first-run wizard.
+    expect(db.data.settings.onboardingComplete).toBe(true);
+  });
+
+  it('leaves onboardingComplete false for a genuinely fresh install with no communityPath', async () => {
+    const db = await initDb(tmpDir);
+    expect(db.data.settings.onboardingComplete).toBe(false);
+  });
 });
 
 function scannedAddon(overrides) {
@@ -35,6 +83,8 @@ function scannedAddon(overrides) {
 }
 
 describe('upsertScannedAddons — rescan behavior', () => {
+  beforeEach(async () => { await initDb(tmpDir); });
+
   it('overwrites an unconfirmed addon on rescan even when the manifest hash is unchanged', async () => {
     // Regression: a prior version skipped reprocessing whenever the file
     // hash matched, regardless of confirmed status — meaning a matching
@@ -78,6 +128,8 @@ describe('upsertScannedAddons — rescan behavior', () => {
 });
 
 describe('applyAiClassifications', () => {
+  beforeEach(async () => { await initDb(tmpDir); });
+
   it('auto-confirms a high-confidence, fully-resolved suggestion', async () => {
     await upsertScannedAddons([scannedAddon({ contentType: 'OTHER', confirmed: false })]);
     const applied = await applyAiClassifications([

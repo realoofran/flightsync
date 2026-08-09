@@ -1,4 +1,4 @@
-import { FolderOpen, Link2, ExternalLink, FolderCog } from 'lucide-react';
+import { FolderOpen, Link2, ExternalLink, FolderCog, ShieldAlert } from 'lucide-react';
 import { getBridge } from '../lib/mockBridge.js';
 import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 
@@ -58,6 +58,12 @@ export default function VaultDiagram({ communityPath, vaultPath }) {
         Defaults to a hidden folder next to Community (fastest — same drive). Only change this if
         you specifically want your addon files somewhere else; already-linked addons won't move
         until your next rescan.
+      </p>
+      <p className="vault-diagram__warning">
+        <ShieldAlert size={13} />
+        The VAULT box above is where your addon files actually are. Community only holds links to
+        it. Deleting or moving the vault folder permanently deletes those addons — there's no
+        other copy. (There's a README inside it saying the same thing.)
       </p>
     </div>
   );

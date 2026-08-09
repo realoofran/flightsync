@@ -1,0 +1,200 @@
+.insights-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.insights-card {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.insights-card--wide { grid-column: 1 / -1; }
+
+.insights-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.insights-card__title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+.insights-card__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-faint);
+  line-height: 1.6;
+}
+
+/* Single-hue magnitude bars — region counts, disk usage by type. */
+.insights-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.insights-bar-row {
+  display: grid;
+  grid-template-columns: 96px 1fr 64px;
+  align-items: center;
+  gap: var(--space-3);
+}
+.insights-bar-row__label {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.insights-bar-row__track {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  overflow: hidden;
+}
+.insights-bar-row__fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  min-width: 4px;
+}
+.insights-bar-row__value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  text-align: right;
+}
+
+/* Two-series (linked/unlinked) trend — the one chart here with a real
+   legend, since color alone would otherwise be the only way to tell the
+   two series apart. */
+.insights-legend {
+  display: flex;
+  gap: var(--space-4);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.insights-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.insights-legend__dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.insights-legend__dot--green { background: var(--green-text); }
+.insights-legend__dot--red { background: var(--red-text); }
+
+.insights-trend {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  height: 120px;
+  padding-top: var(--space-2);
+}
+.insights-trend__col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+}
+.insights-trend__bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  width: 100%;
+  justify-content: center;
+}
+.insights-trend__bar {
+  width: 10px;
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+}
+.insights-trend__bar--green { background: var(--green-text); }
+.insights-trend__bar--red { background: var(--red-text); }
+.insights-trend__label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+/* Pilot Logbook — cumulative stat tiles + a recent-routes list. */
+.logbook-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+}
+.logbook-stat {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.logbook-stat__value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
+.logbook-stat__label {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.logbook-routes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.logbook-route-row {
+  display: grid;
+  grid-template-columns: 84px 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
+.logbook-route-row__date {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+.logbook-route-row__route {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.logbook-route-row__arrow { color: var(--text-faint); font-weight: 400; }
+.logbook-route-row__meta {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.logbook-route-row__distance {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .insights-grid { grid-template-columns: 1fr; }
+  .logbook-stats { grid-template-columns: repeat(2, 1fr); }
+}

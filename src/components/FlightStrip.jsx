@@ -15,7 +15,7 @@ import './FlightStrip.css';
  * version of a mostly-solid-colored flag (many real flags are dominated by
  * one field color) just reads as an unexplained color wash, not a flag.
  */
-export default function FlightStrip({ plan, loading, onRefresh, onManualEntry }) {
+export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbrief, onPullFromVatsim, onManualEntry }) {
   const { t } = useAppSettings();
   const flagCountry = plan ? countryForFlight(plan) : null;
 
@@ -30,7 +30,12 @@ export default function FlightStrip({ plan, loading, onRefresh, onManualEntry })
         <motion.div key="empty" className="strip strip--empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <span>{t('noActiveFlightPlan')}</span>
           <div className="strip__empty-actions">
-            <button className="btn btn--primary" onClick={onRefresh}>{t('pullFromSimbrief')}</button>
+            <button className="btn btn--primary" onClick={onPullFromSimbrief}>{t('pullFromSimbrief')}</button>
+            {onPullFromVatsim && (
+              <button className="btn btn--ghost" onClick={onPullFromVatsim} title="Pull your own live filed flight plan from the VATSIM network">
+                Pull from VATSIM
+              </button>
+            )}
             {onManualEntry && (
               <button className="btn btn--ghost" onClick={onManualEntry}>{t('manualEntry')}</button>
             )}
@@ -64,14 +69,17 @@ export default function FlightStrip({ plan, loading, onRefresh, onManualEntry })
               <span className="strip__callsign">{plan.callsign || '—'}</span>
             </div>
 
-            <motion.button
-              className="strip__refresh"
-              onClick={onRefresh}
-              title="Re-fetch from SimBrief"
-              whileTap={{ scale: 0.9 }}
-            >
-              <RotateCw size={18} />
-            </motion.button>
+            {onRefresh && (
+              <motion.button
+                className="strip__refresh"
+                onClick={onRefresh}
+                title={plan.source === 'vatsim' ? 'Re-fetch from VATSIM' : 'Re-fetch from SimBrief'}
+                aria-label={plan.source === 'vatsim' ? 'Re-fetch from VATSIM' : 'Re-fetch from SimBrief'}
+                whileTap={{ scale: 0.9 }}
+              >
+                <RotateCw size={18} />
+              </motion.button>
+            )}
           </div>
 
           <div className="strip__route">
@@ -85,6 +93,9 @@ export default function FlightStrip({ plan, loading, onRefresh, onManualEntry })
           </div>
 
           <div className="strip__meta">
+            {plan.source === 'vatsim' && (
+              <span className="tag tag--live"><span className="tag__live-dot" />LIVE ON VATSIM</span>
+            )}
             {plan.airlineIcao && <span className="tag tag--amber">{plan.airlineIcao}</span>}
             <span className="tag">{plan.aircraftIcao}</span>
             {plan.alternates?.length > 0 && (

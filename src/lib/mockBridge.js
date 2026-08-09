@@ -10,11 +10,18 @@ const mockSettings = {
   communityPath: 'C:\\Users\\Devran\\AppData\\Roaming\\Microsoft Flight Simulator 2024\\Packages\\Community',
   vaultPath: 'C:\\Users\\Devran\\AppData\\Roaming\\Microsoft Flight Simulator 2024\\Packages\\.flightsync-vault',
   simbriefPilotId: '1598381',
+  vatsimCid: '1234567',
+  aiApiKey: null,
   includeAlternates: true,
   theme: 'dark',
   language: 'en',
   onboardingComplete: true,
+  minimizeToTray: false,
+  notifyOnMsfsLaunch: true,
+  autoSyncOnLaunch: false,
 };
+
+let mockLaunchAtLogin = false;
 
 const mockAddons = [
   { id: 'a1', folderName: 'fspro-eddm-munich', categoryPath: '', title: 'Munich Airport EDDM Enhanced', contentType: 'SCENERY', region: 'Europe', candidateIcaos: ['EDDM'], matchedIcao: 'EDDM', matchedAircraftType: null, matchedAirline: null, confirmed: true, alwaysActive: false, nameConflict: false },
@@ -28,6 +35,12 @@ const mockAddons = [
   { id: 'a8', folderName: 'fspro-eddf-frankfurt', categoryPath: 'Backup', title: 'Frankfurt EDDF (old copy)', contentType: 'SCENERY', region: 'Europe', candidateIcaos: ['EDDF'], matchedIcao: 'EDDF', matchedAircraftType: null, matchedAirline: null, confirmed: true, alwaysActive: false, nameConflict: true },
 ];
 
+const mockFlightLog = [
+  { timestamp: new Date(Date.now() - 1 * 86400000).toISOString(), origin: 'LTFM', destination: 'EDDM', aircraftIcao: 'A21N', airlineIcao: 'THY', callsign: 'THY1598', distanceNm: 897 },
+  { timestamp: new Date(Date.now() - 3 * 86400000).toISOString(), origin: 'EDDM', destination: 'EGLL', aircraftIcao: 'A20N', airlineIcao: null, callsign: null, distanceNm: 561 },
+  { timestamp: new Date(Date.now() - 9 * 86400000).toISOString(), origin: 'KJFK', destination: 'EGLL', aircraftIcao: 'B738', airlineIcao: 'THY', callsign: 'THY1', distanceNm: 2991 },
+];
+
 export const mockBridge = {
   settings: {
     get: async () => ({ ...mockSettings }),
@@ -37,6 +50,12 @@ export const mockBridge = {
     },
     detectCommunityPath: async () =>
       'C:\\Users\\Devran\\AppData\\Roaming\\Microsoft Flight Simulator 2024\\Packages\\Community',
+    exportBackup: async () => ({ ok: true, path: 'C:\\fake\\path\\flightsync-settings-2026-08-08.json' }),
+    importBackup: async () => ({ ok: true, settings: { ...mockSettings } }),
+  },
+  app: {
+    getLaunchAtLogin: async () => mockLaunchAtLogin,
+    setLaunchAtLogin: async (enabled) => { mockLaunchAtLogin = enabled; },
   },
   dialog: {
     pickFolder: async () => 'C:\\fake\\path\\selected',
@@ -50,9 +69,16 @@ export const mockBridge = {
       warnings: [
         { path: 'fspro-eddf-frankfurt', code: 'name-conflict', message: '"fspro-eddf-frankfurt" in Airports and Backup' },
         { path: 'community-kjfk-unnamed-v2', code: 'no-manifest', message: 'No manifest.json/layout.json anywhere inside' },
+        { path: 'old-renamed-addon', code: 'broken-link', message: 'Points to "D:\\msfs mods\\old-renamed-addon", which no longer exists — moved, renamed, or deleted outside FlightSync.' },
       ],
     }),
     list: async () => mockAddons,
+    removeBrokenLink: async () => {},
+    onRescanned: () => () => {},
+    getFolderSizes: async () => ({
+      a1: 1_800_000_000, a2: 2_100_000_000, a3: 950_000_000, a3b: 1_200_000_000,
+      a4: 180_000_000, a5: 4_600_000_000, a6: 620_000_000, a7: 45_000_000, a8: 950_000_000,
+    }),
   },
   addon: {
     confirmMatch: async (id, patch) => {
@@ -80,6 +106,7 @@ export const mockBridge = {
       airlineIcao: 'THY',
       callsign: 'THY1598',
       fetchedAt: new Date().toISOString(),
+      source: 'simbrief',
       originCoord: { lat: 41.262, lon: 28.727 },
       destinationCoord: { lat: 48.354, lon: 11.786 },
       routePoints: [
@@ -130,13 +157,53 @@ export const mockBridge = {
     }),
     apply: async () => ({ linked: ['a1', 'a2', 'a4'], unlinked: [], errors: [] }),
     history: async () => ([
-      { timestamp: new Date(Date.now() - 86400000).toISOString(), linkedCount: 3, unlinkedCount: 2, errorCount: 0 },
+      {
+        timestamp: new Date(Date.now() - 86400000).toISOString(),
+        linkedCount: 3, unlinkedCount: 2, errorCount: 0,
+        linkedIds: ['a1', 'a2', 'a4'], unlinkedIds: ['a6', 'a7'],
+      },
     ]),
+    undo: async () => ({ linked: ['a6', 'a7'], unlinked: ['a1', 'a2', 'a4'], errors: [] }),
+  },
+  flightLog: {
+    record: async (entry) => { mockFlightLog.unshift({ timestamp: new Date().toISOString(), ...entry }); },
+    list: async () => [...mockFlightLog],
+  },
+  vatsim: {
+    fetchMyFlightPlan: async () => ({
+      origin: 'KJFK',
+      destination: 'EGLL',
+      alternates: ['EGKK'],
+      aircraftIcao: 'B738',
+      airlineIcao: 'THY',
+      callsign: 'THY1',
+      fetchedAt: new Date().toISOString(),
+      source: 'vatsim',
+      originCoord: null,
+      destinationCoord: null,
+      routePoints: [],
+      ofp: null,
+    }),
+    getAtcStatus: async (icaos) => {
+      const sample = {
+        LTFM: [{ callsign: 'LTFM_TWR', name: 'Istanbul Tower', frequency: 118.1, facility: 4 }],
+        EDDM: [
+          { callsign: 'EDDM_TWR', name: 'Munich Tower', frequency: 118.7, facility: 4 },
+          { callsign: 'EDDM_APP', name: 'Munich Approach', frequency: 120.75, facility: 5 },
+        ],
+      };
+      const result = {};
+      for (const icao of icaos ?? []) result[icao] = sample[icao] ?? [];
+      return result;
+    },
   },
   updater: {
     check: async () => ({ state: 'unavailable', message: 'Updates only run in the packaged app, not in dev mode.' }),
     install: async () => {},
     onStatus: () => () => {},
+  },
+  msfs: {
+    onLaunched: () => () => {},
   },
 };
 

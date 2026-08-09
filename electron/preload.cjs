@@ -14,6 +14,12 @@ contextBridge.exposeInMainWorld('flightsync', {
     get: () => ipcRenderer.invoke('settings:get'),
     update: (patch) => ipcRenderer.invoke('settings:update', patch),
     detectCommunityPath: () => ipcRenderer.invoke('settings:detectCommunityPath'),
+    exportBackup: () => ipcRenderer.invoke('settings:exportBackup'),
+    importBackup: () => ipcRenderer.invoke('settings:importBackup'),
+  },
+  app: {
+    getLaunchAtLogin: () => ipcRenderer.invoke('app:getLaunchAtLogin'),
+    setLaunchAtLogin: (enabled) => ipcRenderer.invoke('app:setLaunchAtLogin', enabled),
   },
   dialog: {
     pickFolder: (title) => ipcRenderer.invoke('dialog:pickFolder', { title }),
@@ -24,6 +30,16 @@ contextBridge.exposeInMainWorld('flightsync', {
   library: {
     scan: () => ipcRenderer.invoke('library:scan'),
     list: () => ipcRenderer.invoke('library:list'),
+    removeBrokenLink: (path) => ipcRenderer.invoke('library:removeBrokenLink', { path }),
+    getFolderSizes: () => ipcRenderer.invoke('library:getFolderSizes'),
+    // Fires when the tray's "Rescan Community" menu item completes a scan
+    // outside the normal Library-tab flow, so the UI can pick up the fresh
+    // results without the user having to click Rescan again themselves.
+    onRescanned: (callback) => {
+      const listener = (_event, payload) => callback(payload);
+      ipcRenderer.on('library:rescanned', listener);
+      return () => ipcRenderer.removeListener('library:rescanned', listener);
+    },
   },
   addon: {
     confirmMatch: (id, patch) => ipcRenderer.invoke('addon:confirmMatch', { id, patch }),
@@ -39,6 +55,15 @@ contextBridge.exposeInMainWorld('flightsync', {
     preview: (plan) => ipcRenderer.invoke('sync:preview', { plan }),
     apply: (syncPlan) => ipcRenderer.invoke('sync:apply', { syncPlan }),
     history: () => ipcRenderer.invoke('sync:history'),
+    undo: () => ipcRenderer.invoke('sync:undo'),
+  },
+  flightLog: {
+    record: (entry) => ipcRenderer.invoke('flightLog:record', entry),
+    list: () => ipcRenderer.invoke('flightLog:list'),
+  },
+  vatsim: {
+    getAtcStatus: (icaos) => ipcRenderer.invoke('vatsim:getAtcStatus', { icaos }),
+    fetchMyFlightPlan: () => ipcRenderer.invoke('vatsim:fetchMyFlightPlan'),
   },
   updater: {
     check: () => ipcRenderer.invoke('updater:check'),
@@ -49,6 +74,15 @@ contextBridge.exposeInMainWorld('flightsync', {
       const listener = (_event, payload) => callback(payload);
       ipcRenderer.on('updater:status', listener);
       return () => ipcRenderer.removeListener('updater:status', listener);
+    },
+  },
+  msfs: {
+    // Fires once when MSFS 2024 is detected starting (main process polls
+    // for it) — never repeats while it's still running.
+    onLaunched: (callback) => {
+      const listener = () => callback();
+      ipcRenderer.on('msfs:launched', listener);
+      return () => ipcRenderer.removeListener('msfs:launched', listener);
     },
   },
 });

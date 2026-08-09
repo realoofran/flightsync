@@ -22,14 +22,19 @@ const DEFAULT_DATA = {
     communityPath: null,   // the user's one real MSFS Community folder — this is the only folder they ever need to point the app at
     vaultPath: null,       // hidden sibling folder FlightSync manages automatically — see addonScanner.js migration logic. Auto-derived from communityPath, never set by the user directly.
     simbriefPilotId: null,
+    vatsimCid: null,       // user's own VATSIM CID — used only to look up THEIR pilot session in the public data feed, never sent anywhere
     aiApiKey: null,        // user's own Anthropic API key, used only by the opt-in "Classify with AI" step — never bundled into the app
     includeAlternates: true,
     theme: 'dark',         // 'dark' | 'light' | 'high-contrast'
     language: 'en',        // 'en' | 'de' | 'tr'
     onboardingComplete: false,
+    minimizeToTray: false, // if true, closing the window hides to the system tray instead of quitting
+    notifyOnMsfsLaunch: true,  // native notification + in-app banner when MSFS 2024 starts
+    autoSyncOnLaunch: false,   // if true AND a sync preview with pending changes is already loaded, apply it automatically when MSFS starts
   },
   addons: {},        // id -> Addon  (see addonScanner.js)
   syncHistory: [],   // { timestamp, plan summary, result } — last 50 kept
+  flightLog: [],      // { timestamp, origin, destination, aircraftIcao, airlineIcao, callsign, distanceNm } — last 200 kept, see recordFlight()
 };
 
 /**
@@ -50,9 +55,22 @@ export async function initDb(userDataPath) {
   // Migration: onboardingComplete didn't exist before v1.0.0. Treat any
   // existing DB that already has a communityPath configured as already
   // onboarded, so upgrading users don't see the first-run wizard again.
+  // Must run BEFORE the generic backfill below — that backfill would
+  // otherwise set onboardingComplete to the plain default (false) first,
+  // and this check would never see it as missing.
   if (db.data.settings.onboardingComplete === undefined) {
     db.data.settings.onboardingComplete = Boolean(db.data.settings.communityPath);
   }
+  // Backfill any OTHER settings field added in a version newer than this DB
+  // file — confirmed as a REAL live bug, not theoretical: every settings
+  // key added since the very first release (aiApiKey, minimizeToTray,
+  // notifyOnMsfsLaunch, autoSyncOnLaunch, ...) was silently `undefined` for
+  // any user who saved a db.json before that key existed, since a shallow
+  // `db.data ||=` above only helps when the WHOLE file is missing, not when
+  // it exists but predates a newer field. Existing values always win — this
+  // only fills in gaps, never overwrites what the user already has.
+  db.data.settings = { ...DEFAULT_DATA.settings, ...db.data.settings };
+  db.data.flightLog ??= [];
   await db.write();
   return db;
 }
@@ -193,6 +211,20 @@ export async function recordSyncResult(summary) {
   const { data } = getDb();
   data.syncHistory.unshift({ timestamp: new Date().toISOString(), ...summary });
   data.syncHistory = data.syncHistory.slice(0, 50);
+  await getDb().write();
+}
+
+/**
+ * Appends one entry to the pilot logbook — called once per successful
+ * sync:apply that had a flight plan attached (see main.js), not on every
+ * file-link operation. Re-applying the same route with nothing left to
+ * change still logs a flight: getting Community ready to fly it is the
+ * real signal of intent, not whether any junctions happened to move.
+ */
+export async function recordFlight(entry) {
+  const { data } = getDb();
+  data.flightLog.unshift({ timestamp: new Date().toISOString(), ...entry });
+  data.flightLog = data.flightLog.slice(0, 200);
   await getDb().write();
 }
 

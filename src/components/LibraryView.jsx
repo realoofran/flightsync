@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, RefreshCw, Boxes, FolderSearch, Sparkles, MapPin } from 'lucide-react';
+import { Search, RefreshCw, Boxes, FolderSearch, Sparkles, MapPin, Unlink, X, HardDrive, ArrowDownWideNarrow } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getBridge } from '../lib/mockBridge.js';
 import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 import { CONTENT_TYPE_COLORS, colorFor, cssColor } from '../lib/contentTypeColors.js';
 import { KNOWN_REGIONS } from '../lib/regions.js';
+import { formatBytes } from '../lib/formatBytes.js';
+import { sortAddons, SORT_OPTIONS } from '../lib/sortAddons.js';
 import ConfirmForm from './ConfirmForm.jsx';
 import VaultDiagram from './VaultDiagram.jsx';
 import SceneryMap from './SceneryMap.jsx';
@@ -15,7 +17,8 @@ const TYPE_FILTERS = ['ALL', 'SCENERY', 'LIVERY', 'AIRCRAFT', 'OTHER'];
 const WARNING_EXPLAIN = {
   'no-manifest': "No manifest.json/layout.json found inside — can't identify these as addons, left untouched:",
   'depth-limit': 'Nested too deep to fully scan (10+ folders):',
-  'read-error': "Couldn't read these folders (permissions, broken links, etc.):",
+  'read-error': "Couldn't read these folders (permissions, unusual filesystem issues, etc.):",
+  'broken-link': "These point to a folder that no longer exists — likely moved, renamed, or deleted outside FlightSync:",
   'migrate-error': 'Failed to move these into the vault:',
   'name-conflict': 'Two addons share the same folder name — only one can be linked at a time:',
 };
@@ -48,6 +51,7 @@ export default function LibraryView() {
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState(null);
   const [scanWarnings, setScanWarnings] = useState([]);
+  const [removingLinkPath, setRemovingLinkPath] = useState(null);
   const [aiClassifying, setAiClassifying] = useState(false);
   const [aiMessage, setAiMessage] = useState(null);
   const [aiError, setAiError] = useState(null);
@@ -55,12 +59,23 @@ export default function LibraryView() {
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [regionFilter, setRegionFilter] = useState('ALL');
+  const [sizes, setSizes] = useState(null);
+  const [loadingSizes, setLoadingSizes] = useState(false);
+  const [sortBy, setSortBy] = useState('default');
 
   const load = useCallback(async () => {
     setAddons(await bridge.library.list());
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const unsubscribe = bridge.library.onRescanned(({ addons: scanned, warnings }) => {
+      setAddons(scanned);
+      setScanWarnings(warnings ?? []);
+    });
+    return unsubscribe;
+  }, []);
 
   const scan = useCallback(async () => {
     setScanning(true);
@@ -110,6 +125,35 @@ export default function LibraryView() {
     setAddons(prev => prev.map(a => (a.id === id ? updated : a)));
   }, []);
 
+  const removeBrokenLink = useCallback(async (absolutePath) => {
+    setRemovingLinkPath(absolutePath);
+    try {
+      await bridge.library.removeBrokenLink(absolutePath);
+      setScanWarnings(prev => prev.filter(w => w.path !== absolutePath));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRemovingLinkPath(null);
+    }
+  }, []);
+
+  const loadSizes = useCallback(async () => {
+    if (sizes) { setSizes(null); setSortBySize(false); return; } // toggle off
+    setLoadingSizes(true);
+    try {
+      setSizes(await bridge.library.getFolderSizes());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingSizes(false);
+    }
+  }, [sizes]);
+
+  const totalSizeBytes = useMemo(() => {
+    if (!sizes) return null;
+    return Object.values(sizes).reduce((sum, n) => sum + (n ?? 0), 0);
+  }, [sizes]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return addons.filter(a => {
@@ -128,7 +172,8 @@ export default function LibraryView() {
   const unresolvedCount = useMemo(() => addons.filter(needsAiClassification).length, [addons]);
 
   const unconfirmed = filtered.filter(a => !a.confirmed);
-  const confirmed = filtered.filter(a => a.confirmed);
+  const confirmedUnsorted = filtered.filter(a => a.confirmed);
+  const confirmed = sortAddons(confirmedUnsorted, sortBy, sizes);
 
   const counts = useMemo(() => {
     const c = { SCENERY: 0, LIVERY: 0, AIRCRAFT: 0, OTHER: 0 };
@@ -165,14 +210,25 @@ export default function LibraryView() {
             </button>
           )}
           {addons.length > 0 && (
+            <button className="btn btn--ghost" onClick={loadSizes} disabled={loadingSizes}>
+              <HardDrive size={14} className={loadingSizes ? 'spin' : ''} />
+              {loadingSizes ? 'Measuring…' : sizes ? 'Hide disk usage' : 'Show disk usage'}
+            </button>
+          )}
+          {addons.length > 0 && (
             <button
               className="btn btn--ghost"
               onClick={classifyWithAi}
               disabled={aiClassifying || unresolvedCount === 0}
-              title={unresolvedCount === 0 ? 'Every addon is already resolved' : `${unresolvedCount} addon(s) could use AI help`}
+              title={
+                unresolvedCount === 0
+                  ? 'Every addon is already resolved'
+                  : `${unresolvedCount} addon(s) could use AI help — uses your own paid Anthropic API key (set in Settings), not a free FlightSync feature`
+              }
             >
               <Sparkles size={14} className={aiClassifying ? 'spin' : ''} />
               {aiClassifying ? 'Classifying…' : `Classify with AI${unresolvedCount > 0 ? ` (${unresolvedCount})` : ''}`}
+              <span className="btn__paid-badge">paid</span>
             </button>
           )}
           <button className="btn btn--ghost" onClick={scan} disabled={scanning}>
@@ -205,6 +261,22 @@ export default function LibraryView() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {sizes && totalSizeBytes != null && (
+        <div className="disk-usage-summary">
+          <HardDrive size={14} />
+          <span>Vault total: <strong>{formatBytes(totalSizeBytes)}</strong> across {Object.keys(sizes).length} addon(s)</span>
+          {sortBy !== 'size' && (
+            <button
+              className="btn btn--ghost btn--small"
+              onClick={() => setSortBy('size')}
+              style={{ marginLeft: 'auto' }}
+            >
+              <ArrowDownWideNarrow size={12} /> Sort by size
+            </button>
+          )}
+        </div>
+      )}
 
       {addons.length === 0 && !scanning ? (
         <div className="library-empty glass notched">
@@ -262,6 +334,19 @@ export default function LibraryView() {
             {regionsPresent.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         )}
+
+        <select
+          className="region-select"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          aria-label="Sort confirmed addons by"
+        >
+          {SORT_OPTIONS.map(opt => (
+            <option key={opt.value} value={opt.value} disabled={opt.value === 'size' && !sizes}>
+              Sort: {opt.label}{opt.value === 'size' && !sizes ? ' (measure disk usage first)' : ''}
+            </option>
+          ))}
+        </select>
       </div>
 
       {error && <div className="banner banner--error">{error}</div>}
@@ -293,12 +378,32 @@ export default function LibraryView() {
           <div className="warning-groups">
             {groupWarnings(scanWarnings).map(([code, items]) => (
               <div key={code} className="warning-group">
-                <p className="warning-group__explain">{WARNING_EXPLAIN[code] ?? 'Issue while scanning:'}</p>
+                <div className="warning-group__header">
+                  <p className="warning-group__explain">{WARNING_EXPLAIN[code] ?? 'Issue while scanning:'}</p>
+                  {code === 'broken-link' && items.length > 1 && (
+                    <button
+                      className="btn btn--ghost btn--small"
+                      onClick={() => items.forEach(w => removeBrokenLink(w.path))}
+                    >
+                      <X size={12} /> Remove all {items.length}
+                    </button>
+                  )}
+                </div>
                 <ul className="warning-group__list">
                   {items.map((w, i) => (
                     <li key={i}>
                       <span className="warning-group__path">{w.path}</span>
                       {w.message && <span className="warning-group__reason"> — {w.message}</span>}
+                      {code === 'broken-link' && (
+                        <button
+                          className="btn btn--ghost btn--small"
+                          disabled={removingLinkPath === w.path}
+                          onClick={() => removeBrokenLink(w.path)}
+                          title="Remove this broken link from Community"
+                        >
+                          <Unlink size={12} /> {removingLinkPath === w.path ? 'Removing…' : 'Remove'}
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -393,6 +498,9 @@ export default function LibraryView() {
                     </span>
                   </div>
                   {addon.nameConflict && <span className="manifest__type" style={{ color: 'var(--red-text)' }}>CONFLICT</span>}
+                  {sizes && sizes[addon.id] != null && (
+                    <span className="confirm-row__size">{formatBytes(sizes[addon.id])}</span>
+                  )}
                   <span className="manifest__type" style={{ color: colorCss }}>{color.label}</span>
                   <label className="always-active">
                     <input

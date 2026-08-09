@@ -140,6 +140,22 @@
 }
 .tag--amber { color: var(--amber-text); border-color: rgba(255,176,0,0.35); background: var(--amber-dim); }
 .tag--muted { color: var(--text-muted); }
+.tag--live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--green-text);
+  border-color: var(--green-glow);
+  background: var(--green-dim);
+}
+.tag__live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green-glow);
+  animation: pulse 1.4s ease-in-out infinite;
+}
 
 .strip__refresh {
   background: var(--glass-bg);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Boxes, AlertTriangle, Link2, Info } from 'lucide-react';
+import { Boxes, AlertTriangle, Link2, Info, Rocket, X } from 'lucide-react';
 import { getBridge } from '../lib/mockBridge.js';
 import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 import { useSyncState } from '../lib/SyncStateContext.jsx';
@@ -16,9 +16,18 @@ const bridge = getBridge();
 export default function SyncView() {
   const { t } = useAppSettings();
   const {
-    plan, loadingPlan, manualEntry, preview, applying, applyResult, error, lastSync,
-    setManualEntry, pullFromSimbrief, submitManualPlan, applySync,
+    plan, loadingPlan, manualEntry, preview, applying, applyResult, error, lastSync, msfsLaunched,
+    setManualEntry, pullFromSimbrief, pullFromVatsim, submitManualPlan, applySync, dismissMsfsLaunched,
   } = useSyncState();
+
+  // The refresh icon on a loaded plan should re-pull from wherever that
+  // plan actually came from — previously this always re-pulled from
+  // SimBrief even when the active plan was manually entered, a latent bug
+  // that got more obviously wrong once a third source (VATSIM) existed.
+  // Manual entries have no "re-fetch" equivalent, so no refresh handler is
+  // offered for those — FlightStrip hides the button when onRefresh is null.
+  const refreshHandlers = { simbrief: pullFromSimbrief, vatsim: pullFromVatsim };
+  const onRefresh = plan?.source ? refreshHandlers[plan.source] ?? null : pullFromSimbrief;
   const [libraryStats, setLibraryStats] = useState(null);
 
   useEffect(() => {
@@ -35,10 +44,27 @@ export default function SyncView() {
 
   return (
     <div className="view view--wide">
+      <AnimatePresence>
+        {msfsLaunched && (
+          <motion.div
+            className="banner banner--green msfs-launched-banner"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
+            <Rocket size={15} />
+            <span>MSFS 2024 just launched — {totalChanges > 0 ? `${totalChanges} change(s) ready below.` : 'your linked addons are already up to date.'}</span>
+            <button className="banner__dismiss" onClick={dismissMsfsLaunched} aria-label="Dismiss"><X size={14} /></button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <FlightStrip
         plan={plan}
         loading={loadingPlan}
-        onRefresh={pullFromSimbrief}
+        onRefresh={onRefresh}
+        onPullFromSimbrief={pullFromSimbrief}
+        onPullFromVatsim={pullFromVatsim}
         onManualEntry={!plan && !manualEntry ? () => setManualEntry(true) : null}
       />
 
@@ -101,7 +127,7 @@ export default function SyncView() {
             transition={{ duration: 0.3, delay: 0.1 }}
           >
             <RouteMap plan={plan} />
-            <OfpPanel ofp={plan.ofp} />
+            <OfpPanel ofp={plan.ofp} origin={plan.origin} destination={plan.destination} />
           </motion.div>
         )}
       </AnimatePresence>
