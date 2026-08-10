@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, RefreshCw, Boxes, FolderSearch, Sparkles, MapPin, Unlink, X, HardDrive, ArrowDownWideNarrow } from 'lucide-react';
+import { Search, RefreshCw, Boxes, FolderSearch, Sparkles, MapPin, Unlink, X, HardDrive, ArrowDownWideNarrow, FileDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getBridge } from '../lib/mockBridge.js';
 import { useAppSettings } from '../lib/AppSettingsContext.jsx';
@@ -55,6 +55,8 @@ export default function LibraryView() {
   const [aiClassifying, setAiClassifying] = useState(false);
   const [aiMessage, setAiMessage] = useState(null);
   const [aiError, setAiError] = useState(null);
+  const [csvExporting, setCsvExporting] = useState(false);
+  const [csvMessage, setCsvMessage] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
@@ -111,6 +113,19 @@ export default function LibraryView() {
       setAiError(err.message);
     } finally {
       setAiClassifying(false);
+    }
+  }, []);
+
+  const exportCsv = useCallback(async () => {
+    setCsvExporting(true);
+    setCsvMessage(null);
+    try {
+      const result = await bridge.library.exportCsv();
+      if (result.ok) setCsvMessage({ kind: 'ok', text: `Saved to ${result.path}` });
+    } catch (err) {
+      setCsvMessage({ kind: 'error', text: err.message });
+    } finally {
+      setCsvExporting(false);
     }
   }, []);
 
@@ -231,6 +246,12 @@ export default function LibraryView() {
               <span className="btn__paid-badge">paid</span>
             </button>
           )}
+          {addons.length > 0 && (
+            <button className="btn btn--ghost" onClick={exportCsv} disabled={csvExporting} title="Export the full addon library as a CSV file">
+              <FileDown size={14} className={csvExporting ? 'spin' : ''} />
+              {csvExporting ? 'Exporting…' : 'Export as CSV'}
+            </button>
+          )}
           <button className="btn btn--ghost" onClick={scan} disabled={scanning}>
             <RefreshCw size={14} className={scanning ? 'spin' : ''} />
             {scanning ? t('scanning') : t('rescanCommunity')}
@@ -240,6 +261,7 @@ export default function LibraryView() {
 
       {aiError && <div className="banner banner--error">{aiError}</div>}
       {aiMessage && <div className="banner banner--amber">{aiMessage}</div>}
+      {csvMessage && <div className={`banner banner--${csvMessage.kind === 'error' ? 'error' : 'green'}`}>{csvMessage.text}</div>}
 
       <AnimatePresence>
         {showVault && (

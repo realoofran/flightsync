@@ -18,6 +18,7 @@ import { classifyAddonsWithAI } from './lib/aiClassifier.js';
 import { computeAddonSizes } from './lib/diskUsage.js';
 import { isMsfsRunning } from './lib/processWatcher.js';
 import { fetchVatsimControllers, matchControllersForAirport, fetchVatsimPilotFlightPlan } from './lib/vatsimClient.js';
+import { buildAddonCsv } from './lib/csvExport.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV === 'development';
@@ -529,6 +530,19 @@ ipcMain.handle('library:removeBrokenLink', async (_e, { path: targetPath }) => {
 ipcMain.handle('library:getFolderSizes', async () => {
   const addons = Object.values(getDb().data.addons);
   return computeAddonSizes(addons);
+});
+
+ipcMain.handle('library:exportCsv', async () => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Export addon library as CSV',
+    defaultPath: `flightsync-library-${new Date().toISOString().slice(0, 10)}.csv`,
+    filters: [{ name: 'CSV', extensions: ['csv'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false };
+
+  const csv = buildAddonCsv(Object.values(getDb().data.addons));
+  await fs.writeFile(result.filePath, csv, 'utf-8');
+  return { ok: true, path: result.filePath };
 });
 
 ipcMain.handle('library:listLoadouts', () => getDb().data.loadouts);

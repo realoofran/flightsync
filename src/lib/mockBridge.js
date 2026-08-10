@@ -85,6 +85,7 @@ export const mockBridge = {
       a1: 1_800_000_000, a2: 2_100_000_000, a3: 950_000_000, a3b: 1_200_000_000,
       a4: 180_000_000, a5: 4_600_000_000, a6: 620_000_000, a7: 45_000_000, a8: 950_000_000,
     }),
+    exportCsv: async () => ({ ok: true, path: 'C:\\fake\\path\\flightsync-library.csv' }),
     listLoadouts: async () => [...mockLoadouts],
     createLoadout: async (name, addonIds) => {
       const trimmed = (name ?? '').trim();

@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('flightsync', {
     list: () => ipcRenderer.invoke('library:list'),
     removeBrokenLink: (path) => ipcRenderer.invoke('library:removeBrokenLink', { path }),
     getFolderSizes: () => ipcRenderer.invoke('library:getFolderSizes'),
+    exportCsv: () => ipcRenderer.invoke('library:exportCsv'),
     listLoadouts: () => ipcRenderer.invoke('library:listLoadouts'),
     createLoadout: (name, addonIds) => ipcRenderer.invoke('library:createLoadout', { name, addonIds }),
     deleteLoadout: (id) => ipcRenderer.invoke('library:deleteLoadout', { id }),
