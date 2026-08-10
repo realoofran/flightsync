@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { KNOWN_AIRCRAFT_TYPES, KNOWN_AIRLINES } from '../lib/knownCodes.js';
 import { KNOWN_REGIONS } from '../lib/regions.js';
+import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 
 const CONTENT_TYPES = ['SCENERY', 'LIVERY', 'AIRCRAFT', 'OTHER'];
 
@@ -12,6 +13,7 @@ const CONTENT_TYPES = ['SCENERY', 'LIVERY', 'AIRCRAFT', 'OTHER'];
  * @param {{ addon: Addon, onSave: (patch: object) => void, onCancel: () => void }} props
  */
 export default function ConfirmForm({ addon, onSave, onCancel }) {
+  const { t } = useAppSettings();
   const [contentType, setContentType] = useState(addon.contentType);
   const [icao, setIcao] = useState(addon.matchedIcao ?? addon.candidateIcaos[0] ?? '');
   const [aircraftType, setAircraftType] = useState(addon.matchedAircraftType ?? '');
@@ -41,20 +43,20 @@ export default function ConfirmForm({ addon, onSave, onCancel }) {
   return (
     <div className="confirm-form confirm-form--pending">
       <div className="confirm-form__row">
-        <label>Type</label>
+        <label>{t('typeLabel')}</label>
         <select value={contentType} onChange={(e) => setContentType(e.target.value)}>
-          {CONTENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          {CONTENT_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
         </select>
       </div>
 
       {contentType === 'SCENERY' && (
         <div className="confirm-form__row">
-          <label>Airport ICAO</label>
+          <label>{t('airportIcaoLabel')}</label>
           <input
             autoFocus
             value={icao}
             maxLength={4}
-            placeholder="e.g. EDDF"
+            placeholder={t('airportIcaoPlaceholder')}
             onChange={(e) => setIcao(e.target.value.toUpperCase())}
           />
           {addon.candidateIcaos.length > 1 && (
@@ -69,9 +71,9 @@ export default function ConfirmForm({ addon, onSave, onCancel }) {
 
       {contentType === 'SCENERY' && (
         <div className="confirm-form__row">
-          <label>Region</label>
+          <label>{t('regionLabel')}</label>
           <select value={region} onChange={(e) => setRegion(e.target.value)}>
-            <option value="">Not set</option>
+            <option value="">{t('notSetOption')}</option>
             {KNOWN_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </div>
@@ -79,27 +81,27 @@ export default function ConfirmForm({ addon, onSave, onCancel }) {
 
       {(contentType === 'LIVERY' || contentType === 'AIRCRAFT') && (
         <div className="confirm-form__row">
-          <label>Aircraft ICAO type</label>
+          <label>{t('aircraftIcaoTypeLabel')}</label>
           <input
             autoFocus
             list="aircraft-types"
             value={aircraftType}
-            placeholder="e.g. A21N"
+            placeholder={t('aircraftTypePlaceholder')}
             onChange={(e) => setAircraftType(e.target.value.toUpperCase())}
           />
           <datalist id="aircraft-types">
-            {KNOWN_AIRCRAFT_TYPES.map(t => <option key={t} value={t} />)}
+            {KNOWN_AIRCRAFT_TYPES.map(ac => <option key={ac} value={ac} />)}
           </datalist>
         </div>
       )}
 
       {contentType === 'LIVERY' && (
         <div className="confirm-form__row">
-          <label>Airline ICAO</label>
+          <label>{t('airlineIcaoLabel')}</label>
           <input
             list="airlines"
             value={airline}
-            placeholder="e.g. THY (leave blank if GA/private)"
+            placeholder={t('airlineIcaoPlaceholder')}
             onChange={(e) => setAirline(e.target.value.toUpperCase())}
           />
           <datalist id="airlines">
@@ -110,13 +112,13 @@ export default function ConfirmForm({ addon, onSave, onCancel }) {
 
       {contentType === 'OTHER' && (
         <p className="confirm-form__hint">
-          Marked as "Other" — this addon will always sync in, same as an "Always active" item, since it isn't tied to a route or aircraft.
+          {t('otherTypeHint')}
         </p>
       )}
 
       <div className="confirm-form__actions">
-        <button className="btn btn--primary btn--small" onClick={save} disabled={!canSave}>Save</button>
-        <button className="btn btn--ghost btn--small" onClick={onCancel}>Cancel</button>
+        <button className="btn btn--primary btn--small" onClick={save} disabled={!canSave}>{t('save')}</button>
+        <button className="btn btn--ghost btn--small" onClick={onCancel}>{t('cancel')}</button>
       </div>
     </div>
   );

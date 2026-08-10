@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { lonToPx, latToPx, pickZoomToFit, tilesForViewport, osmTileUrl } from '../lib/mercator.js';
+import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 import airportCoords from '../lib/airportCoords.json';
 import './SceneryMap.css';
 
@@ -41,6 +42,7 @@ function radiusFor(count) {
 }
 
 export default function SceneryMap({ addons }) {
+  const { t } = useAppSettings();
   const [hoveredIcao, setHoveredIcao] = useState(null);
   const { groups, plottedCount, totalCount } = useMemo(() => groupSceneryAddons(addons), [addons]);
 
@@ -71,7 +73,7 @@ export default function SceneryMap({ addons }) {
   if (!projected) {
     return (
       <div className="scenery-map scenery-map--empty notched">
-        <span>NO SCENERY ADDONS WITH A KNOWN LOCATION YET</span>
+        <span>{t('noSceneryWithLocation')}</span>
       </div>
     );
   }
@@ -82,10 +84,10 @@ export default function SceneryMap({ addons }) {
   return (
     <div className="scenery-map notched">
       <div className="scenery-map__header">
-        <span>SCENERY MAP</span>
+        <span>{t('sceneryMapLabel')}</span>
         <span className="scenery-map__count">
-          {plottedCount} of {totalCount} plotted
-          {plottedCount < totalCount && ` — ${totalCount - plottedCount} airport(s) not in the bundled dataset`}
+          {t('sceneryMapPlotted', { plotted: plottedCount, total: totalCount })}
+          {plottedCount < totalCount && t('sceneryMapNotInDataset', { count: totalCount - plottedCount })}
         </span>
       </div>
 

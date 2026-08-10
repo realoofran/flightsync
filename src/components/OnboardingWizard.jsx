@@ -24,7 +24,7 @@ const stepMotion = {
  * a blank Settings tab.
  */
 export default function OnboardingWizard() {
-  const { settings, updateSettings } = useAppSettings();
+  const { settings, updateSettings, t } = useAppSettings();
   const [stepIndex, setStepIndex] = useState(0);
   const [detecting, setDetecting] = useState(false);
   const [detectFailed, setDetectFailed] = useState(false);
@@ -97,72 +97,67 @@ export default function OnboardingWizard() {
               <div className="onboarding__logo">
                 <Logo size={64} wordmark />
               </div>
-              <h1>Welcome to FlightSync</h1>
+              <h1>{t('onboardingWelcomeTitle')}</h1>
               <p>
-                FlightSync keeps only the addons your current flight actually needs linked into
-                MSFS — everything else stays safely in a local vault instead of cluttering (or
-                slowing down) your Community folder. Two-minute setup, then you're flying.
+                {t('onboardingWelcomeBody')}
               </p>
               <button className="btn btn--primary btn--full" onClick={next}>
-                Get started <ArrowRight size={14} />
+                {t('getStartedButton')} <ArrowRight size={14} />
               </button>
             </motion.div>
           )}
 
           {step === 'folder' && (
             <motion.div key="folder" className="onboarding__step" {...stepMotion}>
-              <h2>Where's your Community folder?</h2>
+              <h2>{t('onboardingFolderTitle')}</h2>
               <p className="onboarding__hint">
-                The one real folder MSFS reads addons from. FlightSync only needs this single
-                folder — no separate library to set up.
+                {t('onboardingFolderHint')}
               </p>
               <input
                 readOnly
                 className="onboarding__path"
                 value={settings.communityPath ?? ''}
-                placeholder="Not set yet"
+                placeholder={t('onboardingFolderNotSetYet')}
               />
               <div className="onboarding__row">
                 <button className="btn btn--ghost" onClick={detect} disabled={detecting}>
                   <Wand2 size={14} className={detecting ? 'spin' : ''} />
-                  {detecting ? 'Detecting…' : 'Detect automatically'}
+                  {detecting ? t('detecting') : t('detectAutomatically')}
                 </button>
                 <button className="btn btn--ghost" onClick={pickFolder}>
-                  <FolderOpen size={14} /> Browse manually
+                  <FolderOpen size={14} /> {t('browseManuallyButton')}
                 </button>
               </div>
               {detectFailed && (
                 <p className="onboarding__hint onboarding__hint--warn">
-                  Couldn't find an MSFS install automatically (checked Microsoft Store and every
-                  Steam library). Browse manually — it's usually under your MSFS install's{' '}
-                  <code>Community</code> folder.
+                  {t('onboardingDetectFailedPre')}{' '}
+                  <code>Community</code> {t('onboardingDetectFailedPost')}
                 </p>
               )}
               <button className="btn btn--primary btn--full" onClick={next} disabled={!settings.communityPath}>
-                Continue <ArrowRight size={14} />
+                {t('continueButton')} <ArrowRight size={14} />
               </button>
             </motion.div>
           )}
 
           {step === 'simbrief' && (
             <motion.div key="simbrief" className="onboarding__step" {...stepMotion}>
-              <h2>Connect SimBrief</h2>
+              <h2>{t('onboardingSimbriefTitle')}</h2>
               <p className="onboarding__hint">
-                Optional, but lets FlightSync pull your route automatically instead of typing it
-                in by hand every flight. You can add or change this later in Settings.
+                {t('onboardingSimbriefHint')}
               </p>
               <input
                 className="onboarding__path"
                 value={pilotId}
                 onChange={(e) => setPilotId(e.target.value)}
-                placeholder="SimBrief pilot ID or username, e.g. 1598381"
+                placeholder={t('onboardingSimbriefPlaceholder')}
               />
               <div className="onboarding__row">
                 <button className="btn btn--ghost" onClick={next}>
-                  <SkipForward size={14} /> Skip for now
+                  <SkipForward size={14} /> {t('skipForNowButton')}
                 </button>
                 <button className="btn btn--primary" onClick={savePilotIdAndContinue}>
-                  Continue <ArrowRight size={14} />
+                  {t('continueButton')} <ArrowRight size={14} />
                 </button>
               </div>
             </motion.div>
@@ -170,19 +165,14 @@ export default function OnboardingWizard() {
 
           {step === 'scan' && (
             <motion.div key="scan" className="onboarding__step" {...stepMotion}>
-              <h2>First scan</h2>
+              <h2>{t('onboardingScanTitle')}</h2>
               {!scanResult && (
                 <>
                   <p className="onboarding__hint">
-                    FlightSync will look through your Community folder, move any addons it finds
-                    into a vault folder next to it, and link them straight back — MSFS won't see
-                    any difference. Nothing is ever deleted.
+                    {t('onboardingScanHint')}
                   </p>
                   <p className="onboarding__hint onboarding__hint--warn">
-                    Important: that vault folder becomes the ONLY real copy of those addons — the
-                    Community folder will just hold links to it. Never delete or move the vault
-                    folder itself; that permanently removes whatever's inside it from MSFS. (Every
-                    vault folder has a README inside explaining this too.)
+                    {t('onboardingScanWarnHint')}
                   </p>
                 </>
               )}
@@ -191,19 +181,21 @@ export default function OnboardingWizard() {
 
               {!scanResult ? (
                 <button className="btn btn--primary btn--full" onClick={runFirstScan} disabled={scanning}>
-                  {scanning ? 'Scanning…' : 'Scan Community folder'}
+                  {scanning ? t('onboardingScanningButton') : t('scanCommunityFolderButton')}
                 </button>
               ) : (
                 <>
                   <div className="onboarding__result">
                     <CheckCircle2 size={22} color="var(--green-text)" />
                     <span>
-                      {scanResult.count} addon{scanResult.count === 1 ? '' : 's'} found
-                      {scanResult.pending > 0 ? `, ${scanResult.pending} need confirmation` : ''}.
+                      {t(scanResult.count === 1 ? 'scanResultFoundSingular' : 'scanResultFoundPlural', {
+                        count: scanResult.count,
+                        pendingClause: scanResult.pending > 0 ? t('scanResultPendingClause', { pending: scanResult.pending }) : '',
+                      })}
                     </span>
                   </div>
                   <button className="btn btn--primary btn--full" onClick={finish}>
-                    Start using FlightSync
+                    {t('startUsingButton')}
                   </button>
                 </>
               )}

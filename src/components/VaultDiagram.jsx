@@ -13,7 +13,7 @@ const bridge = getBridge();
  * want their real addon files on a specific drive/folder they control.
  */
 export default function VaultDiagram({ communityPath, vaultPath }) {
-  const { updateSettings } = useAppSettings();
+  const { updateSettings, t } = useAppSettings();
   if (!communityPath) return null;
 
   const openFolder = (path) => bridge.shell.openFolder(path);
@@ -28,42 +28,38 @@ export default function VaultDiagram({ communityPath, vaultPath }) {
       <div className="vault-diagram__box">
         <FolderOpen size={18} color="var(--cyan-text)" />
         <div className="vault-diagram__box-text">
-          <span className="vault-diagram__box-label">COMMUNITY (what MSFS sees)</span>
+          <span className="vault-diagram__box-label">{t('communityBoxLabel')}</span>
           <span className="vault-diagram__box-path">{communityPath}</span>
         </div>
         <button className="btn btn--ghost btn--small" onClick={() => openFolder(communityPath)}>
-          <ExternalLink size={12} /> Open in Explorer
+          <ExternalLink size={12} /> {t('openInExplorer')}
         </button>
       </div>
 
       <div className="vault-diagram__link">
         <Link2 size={16} color="var(--green-text)" />
-        <span>links point here</span>
+        <span>{t('linksPointHere')}</span>
       </div>
 
       <div className="vault-diagram__box">
         <FolderOpen size={18} color="var(--green-text)" />
         <div className="vault-diagram__box-text">
-          <span className="vault-diagram__box-label">VAULT (where your files actually live)</span>
-          <span className="vault-diagram__box-path">{vaultPath || 'Set your Community folder first'}</span>
+          <span className="vault-diagram__box-label">{t('vaultBoxLabel')}</span>
+          <span className="vault-diagram__box-path">{vaultPath || t('vaultNotSetYet')}</span>
         </div>
         <button className="btn btn--ghost btn--small" onClick={() => openFolder(vaultPath)} disabled={!vaultPath}>
-          <ExternalLink size={12} /> Open in Explorer
+          <ExternalLink size={12} /> {t('openInExplorer')}
         </button>
         <button className="btn btn--ghost btn--small" onClick={chooseVault}>
-          <FolderCog size={12} /> Change
+          <FolderCog size={12} /> {t('changeButton')}
         </button>
       </div>
       <p className="vault-diagram__hint">
-        Defaults to a hidden folder next to Community (fastest — same drive). Only change this if
-        you specifically want your addon files somewhere else; already-linked addons won't move
-        until your next rescan.
+        {t('vaultDiagramHint')}
       </p>
       <p className="vault-diagram__warning">
         <ShieldAlert size={13} />
-        The VAULT box above is where your addon files actually are. Community only holds links to
-        it. Deleting or moving the vault folder permanently deletes those addons — there's no
-        other copy. (There's a README inside it saying the same thing.)
+        {t('vaultDiagramWarning')}
       </p>
     </div>
   );

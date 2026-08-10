@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { motion, useAnimationFrame } from 'framer-motion';
+import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 import './RouteMap.css';
 
 // Real map tiles via OpenStreetMap's standard tile server — free, no API
@@ -24,12 +25,13 @@ function latToPx(lat, zoom) {
 }
 
 export default function RouteMap({ plan }) {
+  const { t } = useAppSettings();
   const projected = useMemo(() => project(plan), [plan]);
 
   if (!projected) {
     return (
       <div className="route-map route-map--empty notched">
-        <span>NO ROUTE TO DISPLAY</span>
+        <span>{t('noRouteToDisplay')}</span>
       </div>
     );
   }

@@ -1,22 +1,24 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { colorFor, cssColor } from '../lib/contentTypeColors.js';
+import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 import './ManifestList.css';
 
-const STATUS_CONFIG = {
-  link: { led: 'green', label: 'LINK' },
-  unlink: { led: 'red', label: 'UNLINK' },
-  unchanged: { led: 'cyan-dim', label: 'ACTIVE' },
-  pending: { led: 'amber', label: 'CONFIRM' },
+const STATUS_KEYS = {
+  link: { led: 'green', labelKey: 'statusLink' },
+  unlink: { led: 'red', labelKey: 'statusUnlink' },
+  unchanged: { led: 'cyan-dim', labelKey: 'statusActive' },
+  pending: { led: 'amber', labelKey: 'statusConfirm' },
 };
 
 /**
- * @param {{ addons: Addon[], status: keyof typeof STATUS_CONFIG, onRowClick?: (addon) => void }} props
+ * @param {{ addons: Addon[], status: keyof typeof STATUS_KEYS, onRowClick?: (addon) => void }} props
  */
-export default function ManifestList({ addons, status, onRowClick, emptyLabel = 'Nothing here' }) {
-  const cfg = STATUS_CONFIG[status];
+export default function ManifestList({ addons, status, onRowClick, emptyLabel }) {
+  const { t } = useAppSettings();
+  const cfg = STATUS_KEYS[status];
 
   if (!addons?.length) {
-    return <div className="manifest__empty">{emptyLabel}</div>;
+    return <div className="manifest__empty">{emptyLabel ?? t('nothingHere')}</div>;
   }
 
   return (
@@ -46,7 +48,7 @@ export default function ManifestList({ addons, status, onRowClick, emptyLabel = 
                 {addon.categoryPath && <span className="manifest__category">{addon.categoryPath}</span>}
               </div>
               <span className="manifest__type" style={{ color: colorCss }}>{color.label}</span>
-              <span className="manifest__status">{cfg.label}</span>
+              <span className="manifest__status">{t(cfg.labelKey)}</span>
             </motion.div>
           );
         })}

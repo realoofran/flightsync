@@ -14,13 +14,13 @@ import SceneryMap from './SceneryMap.jsx';
 const bridge = getBridge();
 const TYPE_FILTERS = ['ALL', 'SCENERY', 'LIVERY', 'AIRCRAFT', 'OTHER'];
 
-const WARNING_EXPLAIN = {
-  'no-manifest': "No manifest.json/layout.json found inside — can't identify these as addons, left untouched:",
-  'depth-limit': 'Nested too deep to fully scan (10+ folders):',
-  'read-error': "Couldn't read these folders (permissions, unusual filesystem issues, etc.):",
-  'broken-link': "These point to a folder that no longer exists — likely moved, renamed, or deleted outside FlightSync:",
-  'migrate-error': 'Failed to move these into the vault:',
-  'name-conflict': 'Two addons share the same folder name — only one can be linked at a time:',
+const WARNING_EXPLAIN_KEYS = {
+  'no-manifest': 'warnNoManifest',
+  'depth-limit': 'warnDepthLimit',
+  'read-error': 'warnReadError',
+  'broken-link': 'warnBrokenLink',
+  'migrate-error': 'warnMigrateError',
+  'name-conflict': 'warnNameConflict',
 };
 
 function groupWarnings(warnings) {
@@ -106,28 +106,28 @@ export default function LibraryView() {
       } else {
         const total = result.classifiedCount + result.failedCount;
         setAiMessage(total === 0
-          ? "Nothing needed AI classification — every addon is already resolved."
-          : `Classified ${result.appliedCount} of ${total} addon${total === 1 ? '' : 's'} with AI.`);
+          ? t('aiNothingNeeded')
+          : t('aiClassifiedSummary', { applied: result.appliedCount, total, plural: total === 1 ? '' : 's' }));
       }
     } catch (err) {
       setAiError(err.message);
     } finally {
       setAiClassifying(false);
     }
-  }, []);
+  }, [t]);
 
   const exportCsv = useCallback(async () => {
     setCsvExporting(true);
     setCsvMessage(null);
     try {
       const result = await bridge.library.exportCsv();
-      if (result.ok) setCsvMessage({ kind: 'ok', text: `Saved to ${result.path}` });
+      if (result.ok) setCsvMessage({ kind: 'ok', text: t('backupSavedTo', { path: result.path }) });
     } catch (err) {
       setCsvMessage({ kind: 'error', text: err.message });
     } finally {
       setCsvExporting(false);
     }
-  }, []);
+  }, [t]);
 
   const confirm = useCallback(async (id, patch) => {
     const updated = await bridge.addon.confirmMatch(id, patch);
@@ -153,7 +153,7 @@ export default function LibraryView() {
   }, []);
 
   const loadSizes = useCallback(async () => {
-    if (sizes) { setSizes(null); setSortBySize(false); return; } // toggle off
+    if (sizes) { setSizes(null); setSortBy(prev => (prev === 'size' ? 'default' : prev)); return; } // toggle off
     setLoadingSizes(true);
     try {
       setSizes(await bridge.library.getFolderSizes());
@@ -217,17 +217,17 @@ export default function LibraryView() {
         <h2>{t('addonLibrary')}</h2>
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
           <button className="btn btn--ghost" onClick={() => setShowVault(v => !v)}>
-            <FolderSearch size={14} /> Where do my files live?
+            <FolderSearch size={14} /> {t('whereFilesLiveButton')}
           </button>
           {addons.length > 0 && (
             <button className="btn btn--ghost" onClick={() => setShowMap(v => !v)}>
-              <MapPin size={14} /> {showMap ? 'Hide map' : 'View on map'}
+              <MapPin size={14} /> {showMap ? t('hideMapButton') : t('viewOnMapButton')}
             </button>
           )}
           {addons.length > 0 && (
             <button className="btn btn--ghost" onClick={loadSizes} disabled={loadingSizes}>
               <HardDrive size={14} className={loadingSizes ? 'spin' : ''} />
-              {loadingSizes ? 'Measuring…' : sizes ? 'Hide disk usage' : 'Show disk usage'}
+              {loadingSizes ? t('measuringEllipsis') : sizes ? t('hideDiskUsageButton') : t('showDiskUsageButton')}
             </button>
           )}
           {addons.length > 0 && (
@@ -237,19 +237,19 @@ export default function LibraryView() {
               disabled={aiClassifying || unresolvedCount === 0}
               title={
                 unresolvedCount === 0
-                  ? 'Every addon is already resolved'
-                  : `${unresolvedCount} addon(s) could use AI help — uses your own paid Anthropic API key (set in Settings), not a free FlightSync feature`
+                  ? t('aiAllResolvedTitle')
+                  : t('aiHelpTitle', { count: unresolvedCount })
               }
             >
               <Sparkles size={14} className={aiClassifying ? 'spin' : ''} />
-              {aiClassifying ? 'Classifying…' : `Classify with AI${unresolvedCount > 0 ? ` (${unresolvedCount})` : ''}`}
-              <span className="btn__paid-badge">paid</span>
+              {aiClassifying ? t('classifyingEllipsis') : `${t('classifyWithAiButton')}${unresolvedCount > 0 ? ` (${unresolvedCount})` : ''}`}
+              <span className="btn__paid-badge">{t('paidBadge')}</span>
             </button>
           )}
           {addons.length > 0 && (
-            <button className="btn btn--ghost" onClick={exportCsv} disabled={csvExporting} title="Export the full addon library as a CSV file">
+            <button className="btn btn--ghost" onClick={exportCsv} disabled={csvExporting} title={t('exportCsvTitle')}>
               <FileDown size={14} className={csvExporting ? 'spin' : ''} />
-              {csvExporting ? 'Exporting…' : 'Export as CSV'}
+              {csvExporting ? t('exportingEllipsis') : t('exportAsCsvButton')}
             </button>
           )}
           <button className="btn btn--ghost" onClick={scan} disabled={scanning}>
@@ -287,14 +287,14 @@ export default function LibraryView() {
       {sizes && totalSizeBytes != null && (
         <div className="disk-usage-summary">
           <HardDrive size={14} />
-          <span>Vault total: <strong>{formatBytes(totalSizeBytes)}</strong> across {Object.keys(sizes).length} addon(s)</span>
+          <span>{t('vaultTotalLabel')} <strong>{formatBytes(totalSizeBytes)}</strong> {t('vaultTotalAcross', { count: Object.keys(sizes).length })}</span>
           {sortBy !== 'size' && (
             <button
               className="btn btn--ghost btn--small"
               onClick={() => setSortBy('size')}
               style={{ marginLeft: 'auto' }}
             >
-              <ArrowDownWideNarrow size={12} /> Sort by size
+              <ArrowDownWideNarrow size={12} /> {t('sortBySizeButton')}
             </button>
           )}
         </div>
@@ -303,10 +303,9 @@ export default function LibraryView() {
       {addons.length === 0 && !scanning ? (
         <div className="library-empty glass notched">
           <Boxes size={36} color="var(--text-faint)" />
-          <h3 className="library-empty__title">No addons scanned yet</h3>
+          <h3 className="library-empty__title">{t('noAddonsScannedTitle')}</h3>
           <p>
-            Run a scan to find everything already in your Community folder — FlightSync will
-            move it into a hidden vault and link it right back, so MSFS won't notice a thing.
+            {t('noAddonsScannedBody')}
           </p>
           <button className="btn btn--primary" onClick={scan} disabled={scanning}>
             <RefreshCw size={14} /> {t('rescanCommunity')}
@@ -338,14 +337,14 @@ export default function LibraryView() {
         </div>
 
         <div className="chip-row">
-          {TYPE_FILTERS.map(t => (
+          {TYPE_FILTERS.map(tf => (
             <button
-              key={t}
-              className={`filter-chip ${typeFilter === t ? 'filter-chip--active' : ''}`}
-              style={typeFilter === t && t !== 'ALL' ? { borderColor: cssColor(t), color: cssColor(t) } : undefined}
-              onClick={() => setTypeFilter(t)}
+              key={tf}
+              className={`filter-chip ${typeFilter === tf ? 'filter-chip--active' : ''}`}
+              style={typeFilter === tf && tf !== 'ALL' ? { borderColor: cssColor(tf), color: cssColor(tf) } : undefined}
+              onClick={() => setTypeFilter(tf)}
             >
-              {t === 'ALL' ? 'All' : colorFor(t).label}
+              {tf === 'ALL' ? t('allFilterChip') : colorFor(tf).label}
             </button>
           ))}
         </div>
@@ -361,11 +360,11 @@ export default function LibraryView() {
           className="region-select"
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
-          aria-label="Sort confirmed addons by"
+          aria-label={t('sortAriaLabel')}
         >
           {SORT_OPTIONS.map(opt => (
             <option key={opt.value} value={opt.value} disabled={opt.value === 'size' && !sizes}>
-              Sort: {opt.label}{opt.value === 'size' && !sizes ? ' (measure disk usage first)' : ''}
+              {t('sortPrefix', { label: opt.label })}{opt.value === 'size' && !sizes ? t('sortSizeSuffix') : ''}
             </option>
           ))}
         </select>
@@ -376,10 +375,10 @@ export default function LibraryView() {
       {conflictGroups.length > 0 && (
         <details className="banner banner--error">
           <summary style={{ cursor: 'pointer' }}>
-            {conflictGroups.length} folder-name conflict{conflictGroups.length === 1 ? '' : 's'} — excluded from auto-sync until renamed
+            {t('conflictBannerSummary', { count: conflictGroups.length, plural: conflictGroups.length === 1 ? '' : 's' })}
           </summary>
           <div className="warning-groups">
-            <p className="warning-group__explain">MSFS can only link one folder per name — rename one of each pair in the vault, then rescan:</p>
+            <p className="warning-group__explain">{t('conflictBannerExplain')}</p>
             <ul className="warning-group__list">
               {conflictGroups.map(([folderName, group]) => (
                 <li key={folderName}>
@@ -395,19 +394,19 @@ export default function LibraryView() {
       {scanWarnings.length > 0 && (
         <details className="banner banner--amber">
           <summary style={{ cursor: 'pointer' }}>
-            {scanWarnings.length} folder{scanWarnings.length === 1 ? '' : 's'} couldn't be fully scanned — click to see why
+            {t('scanWarningsBannerSummary', { count: scanWarnings.length, plural: scanWarnings.length === 1 ? '' : 's' })}
           </summary>
           <div className="warning-groups">
             {groupWarnings(scanWarnings).map(([code, items]) => (
               <div key={code} className="warning-group">
                 <div className="warning-group__header">
-                  <p className="warning-group__explain">{WARNING_EXPLAIN[code] ?? 'Issue while scanning:'}</p>
+                  <p className="warning-group__explain">{t(WARNING_EXPLAIN_KEYS[code] ?? 'warnGeneric')}</p>
                   {code === 'broken-link' && items.length > 1 && (
                     <button
                       className="btn btn--ghost btn--small"
                       onClick={() => items.forEach(w => removeBrokenLink(w.path))}
                     >
-                      <X size={12} /> Remove all {items.length}
+                      <X size={12} /> {t('removeAllButton', { count: items.length })}
                     </button>
                   )}
                 </div>
@@ -421,9 +420,9 @@ export default function LibraryView() {
                           className="btn btn--ghost btn--small"
                           disabled={removingLinkPath === w.path}
                           onClick={() => removeBrokenLink(w.path)}
-                          title="Remove this broken link from Community"
+                          title={t('removeBrokenLinkTitle')}
                         >
-                          <Unlink size={12} /> {removingLinkPath === w.path ? 'Removing…' : 'Remove'}
+                          <Unlink size={12} /> {removingLinkPath === w.path ? t('removingEllipsis') : t('removeButton')}
                         </button>
                       )}
                     </li>
@@ -519,7 +518,7 @@ export default function LibraryView() {
                       {addon.categoryPath && ` · ${addon.categoryPath}`}
                     </span>
                   </div>
-                  {addon.nameConflict && <span className="manifest__type" style={{ color: 'var(--red-text)' }}>CONFLICT</span>}
+                  {addon.nameConflict && <span className="manifest__type" style={{ color: 'var(--red-text)' }}>{t('conflictBadge')}</span>}
                   {sizes && sizes[addon.id] != null && (
                     <span className="confirm-row__size">{formatBytes(sizes[addon.id])}</span>
                   )}
@@ -536,7 +535,7 @@ export default function LibraryView() {
               );
             })}
           </AnimatePresence>
-          {confirmed.length === 0 && <div className="manifest__empty">No confirmed addons yet.</div>}
+          {confirmed.length === 0 && <div className="manifest__empty">{t('noConfirmedAddonsYet')}</div>}
         </div>
       </section>
         </>

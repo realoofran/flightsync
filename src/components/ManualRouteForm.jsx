@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Radar } from 'lucide-react';
 import { KNOWN_AIRCRAFT_TYPES, KNOWN_AIRLINES } from '../lib/knownCodes.js';
 import { parseFlightRadar24Url } from '../lib/flightRadar24.js';
+import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 
 /**
  * Alternative to "Pull from SimBrief" for pilots who don't use it — produces
@@ -17,6 +18,7 @@ import { parseFlightRadar24Url } from '../lib/flightRadar24.js';
  * have open and type them in below, same as any manual entry.
  */
 export default function ManualRouteForm({ onSubmit, onCancel }) {
+  const { t } = useAppSettings();
   const [fr24Url, setFr24Url] = useState('');
   const [fr24Error, setFr24Error] = useState(false);
   const [origin, setOrigin] = useState('');
@@ -60,10 +62,10 @@ export default function ManualRouteForm({ onSubmit, onCancel }) {
   return (
     <div className="confirm-form">
       <div className="confirm-form__row">
-        <label><Radar size={12} style={{ verticalAlign: -1 }} /> FlightRadar24 link (optional)</label>
+        <label><Radar size={12} style={{ verticalAlign: -1 }} /> {t('fr24LinkLabel')}</label>
         <input
           value={fr24Url}
-          placeholder="Paste a flightradar24.com flight link…"
+          placeholder={t('fr24Placeholder')}
           onChange={(e) => setFr24Url(e.target.value)}
           onBlur={applyFr24Url}
           style={{ textTransform: 'none' }}
@@ -71,50 +73,47 @@ export default function ManualRouteForm({ onSubmit, onCancel }) {
       </div>
       {fr24Error && (
         <p className="confirm-form__hint confirm-form__hint--warn">
-          Doesn't look like a flightradar24.com flight link — leave it blank and fill in the fields
-          below by hand instead.
+          {t('fr24ErrorHint')}
         </p>
       )}
       <p className="confirm-form__hint">
-        This only reads the flight number out of the link's text — it doesn't fetch anything from
-        FlightRadar24, so it fills in the callsign/airline below but not the route or aircraft.
-        Read those off the FR24 page and type them in.
+        {t('fr24ExplainHint')}
       </p>
 
       <div className="confirm-form__row">
-        <label>Origin ICAO</label>
-        <input autoFocus value={origin} maxLength={4} placeholder="e.g. LTFM" onChange={(e) => setOrigin(e.target.value.toUpperCase())} />
+        <label>{t('originIcaoLabel')}</label>
+        <input autoFocus value={origin} maxLength={4} placeholder={t('originPlaceholder')} onChange={(e) => setOrigin(e.target.value.toUpperCase())} />
       </div>
       <div className="confirm-form__row">
-        <label>Destination ICAO</label>
-        <input value={destination} maxLength={4} placeholder="e.g. EDDM" onChange={(e) => setDestination(e.target.value.toUpperCase())} />
+        <label>{t('destinationIcaoLabel')}</label>
+        <input value={destination} maxLength={4} placeholder={t('destinationPlaceholder')} onChange={(e) => setDestination(e.target.value.toUpperCase())} />
       </div>
       <div className="confirm-form__row">
-        <label>Alternate(s)</label>
-        <input value={alternates} placeholder="e.g. EDDF, EDDL (comma-separated, optional)" onChange={(e) => setAlternates(e.target.value.toUpperCase())} />
+        <label>{t('alternatesLabel')}</label>
+        <input value={alternates} placeholder={t('alternatesPlaceholder')} onChange={(e) => setAlternates(e.target.value.toUpperCase())} />
       </div>
       <div className="confirm-form__row">
-        <label>Aircraft type</label>
-        <input list="manual-aircraft-types" value={aircraftIcao} placeholder="e.g. A21N" onChange={(e) => setAircraftIcao(e.target.value.toUpperCase())} />
+        <label>{t('aircraftTypeLabel')}</label>
+        <input list="manual-aircraft-types" value={aircraftIcao} placeholder={t('aircraftTypePlaceholder')} onChange={(e) => setAircraftIcao(e.target.value.toUpperCase())} />
         <datalist id="manual-aircraft-types">
-          {KNOWN_AIRCRAFT_TYPES.map(t => <option key={t} value={t} />)}
+          {KNOWN_AIRCRAFT_TYPES.map(ac => <option key={ac} value={ac} />)}
         </datalist>
       </div>
       <div className="confirm-form__row">
-        <label>Airline</label>
-        <input list="manual-airlines" value={airlineIcao} placeholder="optional, leave blank for GA/private" onChange={(e) => setAirlineIcao(e.target.value.toUpperCase())} />
+        <label>{t('airlineLabel')}</label>
+        <input list="manual-airlines" value={airlineIcao} placeholder={t('manualAirlinePlaceholder')} onChange={(e) => setAirlineIcao(e.target.value.toUpperCase())} />
         <datalist id="manual-airlines">
           {KNOWN_AIRLINES.map(a => <option key={a} value={a} />)}
         </datalist>
       </div>
       <div className="confirm-form__row">
-        <label>Callsign</label>
-        <input value={callsign} placeholder="optional" onChange={(e) => setCallsign(e.target.value)} style={{ textTransform: 'none' }} />
+        <label>{t('callsignLabel')}</label>
+        <input value={callsign} placeholder={t('callsignPlaceholder')} onChange={(e) => setCallsign(e.target.value)} style={{ textTransform: 'none' }} />
       </div>
 
       <div className="confirm-form__actions">
-        <button className="btn btn--primary btn--small" onClick={submit} disabled={!canSubmit}>Use this route</button>
-        <button className="btn btn--ghost btn--small" onClick={onCancel}>Cancel</button>
+        <button className="btn btn--primary btn--small" onClick={submit} disabled={!canSubmit}>{t('useThisRouteButton')}</button>
+        <button className="btn btn--ghost btn--small" onClick={onCancel}>{t('cancel')}</button>
       </div>
     </div>
   );

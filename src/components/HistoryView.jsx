@@ -74,7 +74,7 @@ export default function HistoryView() {
             <div key={i} className="history-row">
               <CheckCircle2 size={16} color={entry.errorCount > 0 ? 'var(--amber-text)' : 'var(--green-text)'} />
               <span className="history-row__time">{formatTimestamp(entry.timestamp)}</span>
-              {entry.isUndo && <span className="history-row__badge">UNDO</span>}
+              {entry.isUndo && <span className="history-row__badge">{t('undoBadge')}</span>}
               <span className="history-row__stat"><Link2 size={12} /> {entry.linkedCount}</span>
               <span className="history-row__stat"><Unlink size={12} /> {entry.unlinkedCount}</span>
               {entry.errorCount > 0 && (
@@ -85,14 +85,10 @@ export default function HistoryView() {
                   className={`btn btn--small history-row__undo ${confirmingUndo ? 'btn--primary' : 'btn--ghost'}`}
                   onClick={requestUndo}
                   disabled={undoing}
-                  title={
-                    confirmingUndo
-                      ? 'Click again to confirm — this changes real files in Community right now'
-                      : 'Reverse this exact sync — re-link what it unlinked, unlink what it linked'
-                  }
+                  title={confirmingUndo ? t('undoConfirmTitle') : t('undoTitle')}
                 >
                   {confirmingUndo ? <Check size={12} /> : <Undo2 size={12} />}
-                  {undoing ? 'Undoing…' : confirmingUndo ? 'Confirm undo?' : 'Undo'}
+                  {undoing ? t('undoingEllipsis') : confirmingUndo ? t('confirmUndoQuestion') : t('undoButton')}
                 </button>
               )}
             </div>

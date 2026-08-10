@@ -19,7 +19,7 @@ const bridge = getBridge();
  * threading a shared search-query state through another context.
  */
 export default function CommandPalette({ open, onClose, setTab }) {
-  const { settings, updateSettings } = useAppSettings();
+  const { settings, updateSettings, t } = useAppSettings();
   const { pullFromSimbrief, setManualEntry } = useSyncState();
   const { check: checkForUpdates } = useUpdater();
   const [query, setQuery] = useState('');
@@ -52,19 +52,19 @@ export default function CommandPalette({ open, onClose, setTab }) {
   const go = useCallback((tab) => setTab(tab), [setTab]);
 
   const commands = useMemo(() => [
-    { id: 'nav-sync', label: 'Go to Route Sync', hint: 'Ctrl+1', icon: PlaneTakeoff, run: () => go('sync') },
-    { id: 'nav-library', label: 'Go to Library', hint: 'Ctrl+2', icon: Boxes, run: () => go('library') },
-    { id: 'nav-history', label: 'Go to History', hint: 'Ctrl+3', icon: History, run: () => go('history') },
-    { id: 'nav-insights', label: 'Go to Insights', hint: 'Ctrl+4', icon: BarChart3, run: () => go('insights') },
-    { id: 'nav-settings', label: 'Go to Settings', hint: 'Ctrl+5', icon: Settings2, run: () => go('settings') },
-    { id: 'pull-simbrief', label: 'Pull from SimBrief', icon: RefreshCw, run: () => { go('sync'); pullFromSimbrief(); } },
-    { id: 'manual-entry', label: 'Enter route manually', icon: PlaneTakeoff, run: () => { go('sync'); setManualEntry(true); } },
-    { id: 'check-updates', label: 'Check for updates', icon: Download, run: () => { go('settings'); checkForUpdates(); } },
-    { id: 'theme-dark', label: 'Switch to Dark theme', icon: Moon, run: () => updateSettings({ theme: 'dark' }) },
-    { id: 'theme-light', label: 'Switch to Light theme', icon: Sun, run: () => updateSettings({ theme: 'light' }) },
-    { id: 'theme-hc', label: 'Switch to High-Contrast Avionics theme', icon: Contrast, run: () => updateSettings({ theme: 'high-contrast' }) },
+    { id: 'nav-sync', label: t('cmdGoToSync'), hint: 'Ctrl+1', icon: PlaneTakeoff, run: () => go('sync') },
+    { id: 'nav-library', label: t('cmdGoToLibrary'), hint: 'Ctrl+2', icon: Boxes, run: () => go('library') },
+    { id: 'nav-history', label: t('cmdGoToHistory'), hint: 'Ctrl+3', icon: History, run: () => go('history') },
+    { id: 'nav-insights', label: t('cmdGoToInsights'), hint: 'Ctrl+4', icon: BarChart3, run: () => go('insights') },
+    { id: 'nav-settings', label: t('cmdGoToSettings'), hint: 'Ctrl+5', icon: Settings2, run: () => go('settings') },
+    { id: 'pull-simbrief', label: t('pullFromSimbrief'), icon: RefreshCw, run: () => { go('sync'); pullFromSimbrief(); } },
+    { id: 'manual-entry', label: t('manualEntry'), icon: PlaneTakeoff, run: () => { go('sync'); setManualEntry(true); } },
+    { id: 'check-updates', label: t('checkForUpdates'), icon: Download, run: () => { go('settings'); checkForUpdates(); } },
+    { id: 'theme-dark', label: t('cmdThemeDark'), icon: Moon, run: () => updateSettings({ theme: 'dark' }) },
+    { id: 'theme-light', label: t('cmdThemeLight'), icon: Sun, run: () => updateSettings({ theme: 'light' }) },
+    { id: 'theme-hc', label: t('cmdThemeHC'), icon: Contrast, run: () => updateSettings({ theme: 'high-contrast' }) },
   ].filter(c => !(c.id === `theme-${settings.theme === 'high-contrast' ? 'hc' : settings.theme}`)), // don't show "switch to" the theme already active
-  [settings.theme, pullFromSimbrief, setManualEntry, checkForUpdates, updateSettings, go]);
+  [settings.theme, pullFromSimbrief, setManualEntry, checkForUpdates, updateSettings, go, t]);
 
   const matchedCommands = useMemo(() => fuzzyFilter(query, commands, (c) => c.label), [query, commands]);
   const matchedAddons = useMemo(
@@ -111,7 +111,7 @@ export default function CommandPalette({ open, onClose, setTab }) {
             className="command-palette glass notched"
             role="dialog"
             aria-modal="true"
-            aria-label="Command palette"
+            aria-label={t('paletteDialogAriaLabel')}
             initial={{ opacity: 0, y: -16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -12, scale: 0.98 }}
@@ -125,8 +125,8 @@ export default function CommandPalette({ open, onClose, setTab }) {
                 value={query}
                 onChange={(e) => { setQuery(e.target.value); setSelected(0); }}
                 onKeyDown={onKeyDown}
-                placeholder="Jump to a tab, run an action, or find an addon…"
-                aria-label="Search commands and addons"
+                placeholder={t('paletteSearchPlaceholder')}
+                aria-label={t('paletteSearchAriaLabel')}
                 role="combobox"
                 aria-expanded={results.length > 0}
                 aria-autocomplete="list"
@@ -136,14 +136,14 @@ export default function CommandPalette({ open, onClose, setTab }) {
             </div>
 
             <div className="command-palette__results" id="command-palette-listbox" role="listbox">
-              {results.length === 0 && <div className="command-palette__empty">No matches.</div>}
+              {results.length === 0 && <div className="command-palette__empty">{t('paletteNoMatches')}</div>}
 
-              {matchedCommands.length > 0 && <div className="command-palette__group-label">Actions</div>}
+              {matchedCommands.length > 0 && <div className="command-palette__group-label">{t('paletteActionsGroup')}</div>}
               {matchedCommands.map((result, i) => (
                 <CommandRow key={result.id} optionId={`command-palette-option-${i}`} result={result} active={i === selected} onClick={() => execute(i)} />
               ))}
 
-              {matchedAddons.length > 0 && <div className="command-palette__group-label">Addons</div>}
+              {matchedAddons.length > 0 && <div className="command-palette__group-label">{t('paletteAddonsGroup')}</div>}
               {matchedAddons.map((addon, j) => {
                 const i = matchedCommands.length + j;
                 const result = { kind: 'addon', id: `addon-${addon.id}`, addon };
@@ -152,9 +152,9 @@ export default function CommandPalette({ open, onClose, setTab }) {
             </div>
 
             <div className="command-palette__footer">
-              <span><CornerDownLeft size={11} /> select</span>
-              <span>↑↓ navigate</span>
-              <span>esc close</span>
+              <span><CornerDownLeft size={11} /> {t('paletteFooterSelect')}</span>
+              <span>↑↓ {t('paletteFooterNavigate')}</span>
+              <span>esc {t('paletteFooterClose')}</span>
             </div>
           </motion.div>
         </motion.div>

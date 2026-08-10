@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { CONTENT_TYPE_COLORS, cssColor } from '../lib/contentTypeColors.js';
+import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 
 const SIZE = 92;
 const STROKE = 12;
@@ -18,6 +19,7 @@ const SEGMENTS = [
  * numbers alone read as a spreadsheet; an actual visual gives the same
  * information a shape you can read at a glance. */
 export default function AddonBreakdown({ stats }) {
+  const { t } = useAppSettings();
   const total = stats.total || 1;
 
   const arcs = useMemo(() => {
@@ -54,7 +56,7 @@ export default function AddonBreakdown({ stats }) {
           />
         ))}
         <text x={SIZE / 2} y={SIZE / 2 - 3} textAnchor="middle" className="addon-breakdown__total">{stats.total}</text>
-        <text x={SIZE / 2} y={SIZE / 2 + 12} textAnchor="middle" className="addon-breakdown__total-label">TOTAL</text>
+        <text x={SIZE / 2} y={SIZE / 2 + 12} textAnchor="middle" className="addon-breakdown__total-label">{t('breakdownTotalLabel')}</text>
       </svg>
 
       <div className="addon-breakdown__legend">

@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Radio, RefreshCw } from 'lucide-react';
 import { getBridge } from '../lib/mockBridge.js';
+import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 import './OfpPanel.css';
 
 const bridge = getBridge();
 
 export default function OfpPanel({ ofp, origin, destination }) {
+  const { t } = useAppSettings();
   const [atcStatus, setAtcStatus] = useState(null);
   const [loadingAtc, setLoadingAtc] = useState(false);
   const [atcError, setAtcError] = useState(null);
@@ -34,14 +36,14 @@ export default function OfpPanel({ ofp, origin, destination }) {
         <div className={`ofp-section ${!ofp ? 'ofp-section--last' : ''}`}>
           <div className="ofp-panel__section-label-row">
             <div className="ofp-panel__section-label">
-              <Radio size={11} style={{ verticalAlign: -1, marginRight: 4 }} />ATC ONLINE (VATSIM)
+              <Radio size={11} style={{ verticalAlign: -1, marginRight: 4 }} />{t('atcOnlineLabel')}
             </div>
             <button
               className="ofp-panel__atc-refresh"
               onClick={loadAtcStatus}
               disabled={loadingAtc}
-              title="Check VATSIM again"
-              aria-label="Refresh ATC status"
+              title={t('checkVatsimAgainTitle')}
+              aria-label={t('refreshAtcAria')}
             >
               <RefreshCw size={11} className={loadingAtc ? 'spin' : ''} />
             </button>
@@ -56,9 +58,9 @@ export default function OfpPanel({ ofp, origin, destination }) {
                   <div className="ofp-panel__atc-row" key={icao}>
                     <span className="ofp-panel__atc-airport">{label} {icao}</span>
                     {controllers === undefined ? (
-                      <span className="ofp-panel__atc-empty">{loadingAtc ? 'Checking…' : '—'}</span>
+                      <span className="ofp-panel__atc-empty">{loadingAtc ? t('checkingEllipsis') : '—'}</span>
                     ) : controllers.length === 0 ? (
-                      <span className="ofp-panel__atc-empty">No ATC online</span>
+                      <span className="ofp-panel__atc-empty">{t('noAtcOnline')}</span>
                     ) : (
                       <span className="ofp-panel__atc-controllers">
                         {controllers.map(c => `${c.callsign} ${c.frequency}`).join('  ·  ')}
@@ -82,33 +84,33 @@ export default function OfpPanel({ ofp, origin, destination }) {
             </div>
           )}
 
-          <Section label="FLIGHT PLAN">
-            <Stat label="DISTANCE" value={ofp.distanceNm ? `${Math.round(ofp.distanceNm)} nm` : '—'} />
-            <Stat label="TIME ENROUTE" value={formatDuration(ofp.estTimeEnrouteSec)} />
-            <Stat label="CRUISE ALT" value={ofp.cruiseAltitudeFt ? `FL${Math.round(ofp.cruiseAltitudeFt / 100)}` : '—'} />
-            <Stat label="COST INDEX" value={ofp.costIndex ?? '—'} />
+          <Section label={t('sectionFlightPlan')}>
+            <Stat label={t('statDistance')} value={ofp.distanceNm ? `${Math.round(ofp.distanceNm)} nm` : '—'} />
+            <Stat label={t('statTimeEnroute')} value={formatDuration(ofp.estTimeEnrouteSec)} />
+            <Stat label={t('statCruiseAlt')} value={ofp.cruiseAltitudeFt ? `FL${Math.round(ofp.cruiseAltitudeFt / 100)}` : '—'} />
+            <Stat label={t('statCostIndex')} value={ofp.costIndex ?? '—'} />
           </Section>
 
-          <Section label="WEIGHTS">
-            <Stat label="ZFW" value={ofp.zfwLbs ? `${Math.round(ofp.zfwLbs).toLocaleString()} lb` : '—'} />
-            <Stat label="TAKEOFF" value={ofp.towLbs ? `${Math.round(ofp.towLbs).toLocaleString()} lb` : '—'} />
-            <Stat label="LANDING" value={ofp.landingWeightLbs ? `${Math.round(ofp.landingWeightLbs).toLocaleString()} lb` : '—'} />
-            <Stat label="MAX TOW" value={ofp.maxTowLbs ? `${Math.round(ofp.maxTowLbs).toLocaleString()} lb` : '—'} />
-            <Stat label="PAX" value={ofp.paxCount ?? '—'} />
-            <Stat label="CARGO" value={ofp.cargoLbs ? `${Math.round(ofp.cargoLbs).toLocaleString()} lb` : '—'} />
+          <Section label={t('sectionWeights')}>
+            <Stat label={t('statZfw')} value={ofp.zfwLbs ? `${Math.round(ofp.zfwLbs).toLocaleString()} lb` : '—'} />
+            <Stat label={t('statTakeoff')} value={ofp.towLbs ? `${Math.round(ofp.towLbs).toLocaleString()} lb` : '—'} />
+            <Stat label={t('statLanding')} value={ofp.landingWeightLbs ? `${Math.round(ofp.landingWeightLbs).toLocaleString()} lb` : '—'} />
+            <Stat label={t('statMaxTow')} value={ofp.maxTowLbs ? `${Math.round(ofp.maxTowLbs).toLocaleString()} lb` : '—'} />
+            <Stat label={t('statPax')} value={ofp.paxCount ?? '—'} />
+            <Stat label={t('statCargo')} value={ofp.cargoLbs ? `${Math.round(ofp.cargoLbs).toLocaleString()} lb` : '—'} />
           </Section>
 
-          <Section label="FUEL">
-            <Stat label="BLOCK FUEL" value={ofp.blockFuelLbs ? `${Math.round(ofp.blockFuelLbs).toLocaleString()} lb` : '—'} />
-            <Stat label="TRIP FUEL" value={ofp.tripFuelLbs ? `${Math.round(ofp.tripFuelLbs).toLocaleString()} lb` : '—'} />
-            <Stat label="TAXI FUEL" value={ofp.taxiFuelLbs ? `${Math.round(ofp.taxiFuelLbs).toLocaleString()} lb` : '—'} />
-            <Stat label="RESERVE" value={ofp.reserveFuelLbs ? `${Math.round(ofp.reserveFuelLbs).toLocaleString()} lb` : '—'} />
-            <Stat label="ALTN FUEL" value={ofp.alternateFuelLbs ? `${Math.round(ofp.alternateFuelLbs).toLocaleString()} lb` : '—'} />
-            <Stat label="AVG WIND" value={ofp.avgWindComponent ? `${ofp.avgWindComponent} kt` : '—'} />
+          <Section label={t('sectionFuel')}>
+            <Stat label={t('statBlockFuel')} value={ofp.blockFuelLbs ? `${Math.round(ofp.blockFuelLbs).toLocaleString()} lb` : '—'} />
+            <Stat label={t('statTripFuel')} value={ofp.tripFuelLbs ? `${Math.round(ofp.tripFuelLbs).toLocaleString()} lb` : '—'} />
+            <Stat label={t('statTaxiFuel')} value={ofp.taxiFuelLbs ? `${Math.round(ofp.taxiFuelLbs).toLocaleString()} lb` : '—'} />
+            <Stat label={t('statReserve')} value={ofp.reserveFuelLbs ? `${Math.round(ofp.reserveFuelLbs).toLocaleString()} lb` : '—'} />
+            <Stat label={t('statAltnFuel')} value={ofp.alternateFuelLbs ? `${Math.round(ofp.alternateFuelLbs).toLocaleString()} lb` : '—'} />
+            <Stat label={t('statAvgWind')} value={ofp.avgWindComponent ? `${ofp.avgWindComponent} kt` : '—'} />
           </Section>
 
           {ofp.alternateIcao && (
-            <Section label="ALTERNATE" grid={false}>
+            <Section label={t('sectionAlternate')} grid={false}>
               <div className="ofp-panel__route-value">
                 {ofp.alternateIcao}{ofp.alternateName ? ` — ${ofp.alternateName}` : ''}
               </div>
@@ -116,16 +118,16 @@ export default function OfpPanel({ ofp, origin, destination }) {
           )}
 
           {(ofp.schedOutUtc || ofp.schedInUtc) && (
-            <Section label="SCHEDULE (UTC)">
-              <Stat label="OUT" value={formatUtcTime(ofp.schedOutUtc)} />
-              <Stat label="IN" value={formatUtcTime(ofp.schedInUtc)} />
-              <Stat label="TAXI OUT" value={ofp.taxiOutMin != null ? `${ofp.taxiOutMin} min` : '—'} />
-              <Stat label="TAXI IN" value={ofp.taxiInMin != null ? `${ofp.taxiInMin} min` : '—'} />
+            <Section label={t('sectionSchedule')}>
+              <Stat label={t('statOut')} value={formatUtcTime(ofp.schedOutUtc)} />
+              <Stat label={t('statIn')} value={formatUtcTime(ofp.schedInUtc)} />
+              <Stat label={t('statTaxiOut')} value={ofp.taxiOutMin != null ? `${ofp.taxiOutMin} min` : '—'} />
+              <Stat label={t('statTaxiIn')} value={ofp.taxiInMin != null ? `${ofp.taxiInMin} min` : '—'} />
             </Section>
           )}
 
           {(ofp.originMetar || ofp.destinationMetar) && (
-            <Section label="WEATHER" grid={false}>
+            <Section label={t('sectionWeather')} grid={false}>
               <div className="ofp-panel__metar-list">
                 {ofp.originMetar && <div className="ofp-panel__metar">{ofp.originMetar}</div>}
                 {ofp.destinationMetar && <div className="ofp-panel__metar">{ofp.destinationMetar}</div>}
@@ -134,7 +136,7 @@ export default function OfpPanel({ ofp, origin, destination }) {
           )}
 
           {ofp.routeString && (
-            <Section label="ROUTE" grid={false} last>
+            <Section label={t('sectionRoute')} grid={false} last>
               <div className="ofp-panel__route-value">{ofp.routeString}</div>
             </Section>
           )}

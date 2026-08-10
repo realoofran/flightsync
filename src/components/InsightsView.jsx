@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { BarChart3, BookMarked, Repeat } from 'lucide-react';
 import { getBridge } from '../lib/mockBridge.js';
 import { useSyncState } from '../lib/SyncStateContext.jsx';
+import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 import AddonBreakdown from './AddonBreakdown.jsx';
 import { formatBytes } from '../lib/formatBytes.js';
 import { CONTENT_TYPE_COLORS } from '../lib/contentTypeColors.js';
@@ -20,6 +21,7 @@ const bridge = getBridge();
  * green/red semantic pair rather than a third arbitrary color.
  */
 export default function InsightsView({ setTab }) {
+  const { t } = useAppSettings();
   const { submitManualPlan } = useSyncState();
   const [addons, setAddons] = useState([]);
   const [sizes, setSizes] = useState(null);
@@ -114,25 +116,25 @@ export default function InsightsView({ setTab }) {
 
   return (
     <motion.div className="view view--wide" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <h2>Insights</h2>
+      <h2>{t('insightsTitle')}</h2>
 
       {addons.length === 0 ? (
         <div className="library-empty glass notched">
           <BarChart3 size={36} color="var(--text-faint)" />
-          <h3 className="library-empty__title">Nothing to show yet</h3>
-          <p>Scan your Community folder in Library first — insights are built from what FlightSync finds there.</p>
+          <h3 className="library-empty__title">{t('insightsNothingTitle')}</h3>
+          <p>{t('insightsNothingBody')}</p>
         </div>
       ) : (
         <div className="insights-grid">
           <section className="insights-card glass notched">
-            <h3 className="insights-card__title">Addon breakdown</h3>
+            <h3 className="insights-card__title">{t('addonBreakdownTitle')}</h3>
             <AddonBreakdown stats={stats} />
           </section>
 
           <section className="insights-card glass notched">
-            <h3 className="insights-card__title">Scenery by region</h3>
+            <h3 className="insights-card__title">{t('sceneryByRegionTitle')}</h3>
             {regionCounts.length === 0 ? (
-              <p className="insights-card__empty">No scenery with a resolved region yet.</p>
+              <p className="insights-card__empty">{t('noSceneryWithRegion')}</p>
             ) : (
               <div className="insights-bars">
                 {regionCounts.map(([region, count]) => (
@@ -150,15 +152,15 @@ export default function InsightsView({ setTab }) {
 
           <section className="insights-card glass notched">
             <div className="insights-card__header">
-              <h3 className="insights-card__title">Disk usage by type</h3>
+              <h3 className="insights-card__title">{t('diskUsageByTypeTitle')}</h3>
               {!sizes && (
                 <button className="btn btn--ghost btn--small" onClick={loadSizes} disabled={loadingSizes}>
-                  {loadingSizes ? 'Measuring…' : 'Measure'}
+                  {loadingSizes ? t('measuringEllipsis') : t('measureButton')}
                 </button>
               )}
             </div>
             {!sizeByType ? (
-              <p className="insights-card__empty">Click Measure to compute real folder sizes (not automatic — can take a moment on a big library).</p>
+              <p className="insights-card__empty">{t('measureHint')}</p>
             ) : (
               <div className="insights-bars">
                 {sizeByType.map(([type, bytes]) => {
@@ -178,14 +180,14 @@ export default function InsightsView({ setTab }) {
           </section>
 
           <section className="insights-card glass notched insights-card--wide">
-            <h3 className="insights-card__title">Recent sync activity</h3>
+            <h3 className="insights-card__title">{t('recentSyncActivityTitle')}</h3>
             {recentSyncs.length === 0 ? (
-              <p className="insights-card__empty">No syncs applied yet.</p>
+              <p className="insights-card__empty">{t('noSyncsAppliedYet')}</p>
             ) : (
               <>
                 <div className="insights-legend">
-                  <span><span className="insights-legend__dot insights-legend__dot--green" /> Linked</span>
-                  <span><span className="insights-legend__dot insights-legend__dot--red" /> Unlinked</span>
+                  <span><span className="insights-legend__dot insights-legend__dot--green" /> {t('linkedLegend')}</span>
+                  <span><span className="insights-legend__dot insights-legend__dot--red" /> {t('unlinkedLegend')}</span>
                 </div>
                 <div className="insights-trend">
                   {recentSyncs.map((s, i) => (
@@ -205,27 +207,27 @@ export default function InsightsView({ setTab }) {
           </section>
 
           <section className="insights-card glass notched insights-card--wide">
-            <h3 className="insights-card__title"><BookMarked size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Pilot Logbook</h3>
+            <h3 className="insights-card__title"><BookMarked size={14} style={{ verticalAlign: -2, marginRight: 6 }} />{t('pilotLogbookTitle')}</h3>
             {!logbookStats ? (
-              <p className="insights-card__empty">No flights logged yet — applying a sync with a flight plan loaded adds one here automatically.</p>
+              <p className="insights-card__empty">{t('noFlightsLoggedYet')}</p>
             ) : (
               <>
                 <div className="logbook-stats">
                   <div className="logbook-stat">
                     <span className="logbook-stat__value">{logbookStats.totalFlights}</span>
-                    <span className="logbook-stat__label">Flights logged</span>
+                    <span className="logbook-stat__label">{t('flightsLoggedStat')}</span>
                   </div>
                   <div className="logbook-stat">
                     <span className="logbook-stat__value">{logbookStats.totalDistance.toLocaleString()}</span>
-                    <span className="logbook-stat__label">Total nm</span>
+                    <span className="logbook-stat__label">{t('totalNmStat')}</span>
                   </div>
                   <div className="logbook-stat">
                     <span className="logbook-stat__value">{logbookStats.uniqueAirports}</span>
-                    <span className="logbook-stat__label">Unique airports</span>
+                    <span className="logbook-stat__label">{t('uniqueAirportsStat')}</span>
                   </div>
                   <div className="logbook-stat">
                     <span className="logbook-stat__value">{logbookStats.mostFlown}</span>
-                    <span className="logbook-stat__label">Most-flown type</span>
+                    <span className="logbook-stat__label">{t('mostFlownTypeStat')}</span>
                   </div>
                 </div>
                 <div className="logbook-routes">
@@ -245,9 +247,9 @@ export default function InsightsView({ setTab }) {
                         className="logbook-route-row__fly-again"
                         onClick={() => flyAgain(f)}
                         disabled={!f.origin || !f.destination || !f.aircraftIcao}
-                        title="Set this up as the active flight plan in Route Sync"
+                        title={t('flyAgainTitle')}
                       >
-                        <Repeat size={11} /> Fly again
+                        <Repeat size={11} /> {t('flyAgainButton')}
                       </button>
                     </div>
                   ))}
