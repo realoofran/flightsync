@@ -43,6 +43,8 @@ describe('initDb — settings migration', () => {
     expect(db.data.settings.minimizeToTray).toBe(false);
     expect(db.data.settings.notifyOnMsfsLaunch).toBe(true);
     expect(db.data.settings.autoSyncOnLaunch).toBe(false);
+    expect(db.data.settings.vatsimCid).toBeNull();
+    expect(db.data.settings.soundEnabled).toBe(false);
     expect(db.data.flightLog).toEqual([]);
 
     // Existing values on disk are never overwritten by the backfill.

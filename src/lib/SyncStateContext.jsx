@@ -3,6 +3,7 @@ import { getBridge } from './mockBridge.js';
 import { useAppSettings } from './AppSettingsContext.jsx';
 import { distanceForRoute } from './greatCircle.js';
 import airportCoords from './airportCoords.json';
+import { playChime } from './chime.js';
 
 const bridge = getBridge();
 const SyncStateContext = createContext(null);
@@ -115,23 +116,25 @@ export function SyncStateProvider({ children }) {
           distanceNm: plan.ofp?.distanceNm ?? distanceForRoute(plan.origin, plan.destination, airportCoords),
         });
       }
+      if (settings.soundEnabled) playChime('syncComplete');
     } catch (err) {
       setError(err.message);
     } finally {
       setApplying(false);
     }
-  }, [preview, plan]);
+  }, [preview, plan, settings.soundEnabled]);
 
   // "Latest" ref so the one-time msfs:launched subscription below always
   // sees current preview/settings/applySync without having to tear down
   // and resubscribe the IPC listener on every render.
   const latestRef = useRef();
-  latestRef.current = { preview, applySync, autoSyncOnLaunch: settings.autoSyncOnLaunch };
+  latestRef.current = { preview, applySync, autoSyncOnLaunch: settings.autoSyncOnLaunch, soundEnabled: settings.soundEnabled };
 
   useEffect(() => {
     const unsubscribe = bridge.msfs.onLaunched(() => {
       setMsfsLaunched(true);
-      const { preview: p, applySync: apply, autoSyncOnLaunch } = latestRef.current;
+      const { preview: p, applySync: apply, autoSyncOnLaunch, soundEnabled } = latestRef.current;
+      if (soundEnabled) playChime('msfsLaunch');
       const pendingChanges = (p?.syncPlan.toLink.length ?? 0) + (p?.syncPlan.toUnlink.length ?? 0);
       if (autoSyncOnLaunch && p && pendingChanges > 0) {
         apply();

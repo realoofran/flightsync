@@ -1,10 +1,11 @@
 import { useCallback, useState, useEffect } from 'react';
-import { FolderOpen, Sun, Moon, Wand2, RefreshCw, Download, CheckCircle2, Contrast, Upload, FileJson, Power } from 'lucide-react';
+import { FolderOpen, Sun, Moon, Wand2, RefreshCw, Download, CheckCircle2, Contrast, Upload, FileJson, Power, Volume2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getBridge } from '../lib/mockBridge.js';
 import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 import { useUpdater } from '../lib/useUpdater.js';
 import { LANGUAGES } from '../lib/i18n.js';
+import { playChime } from '../lib/chime.js';
 import VaultDiagram from './VaultDiagram.jsx';
 
 const bridge = getBridge();
@@ -242,6 +243,23 @@ export default function SettingsView() {
           Community folder. Auto-apply only fires if you already have a route loaded in Route Sync
           with changes waiting; it never invents a route on its own.
         </p>
+      </section>
+
+      <section className="settings-block">
+        <label className="settings-label"><Volume2 size={13} style={{ verticalAlign: -2, marginRight: 4 }} />Sound</label>
+        <label className="settings-row settings-row--checkbox">
+          <input
+            type="checkbox"
+            checked={settings.soundEnabled}
+            onChange={(e) => updateSettings({ soundEnabled: e.target.checked })}
+          />
+          Play a short chime on sync complete and MSFS launch (off by default)
+        </label>
+        <div className="settings-row">
+          <button className="btn btn--ghost btn--small" onClick={() => playChime('syncComplete')}>
+            Test sound
+          </button>
+        </div>
       </section>
 
       <section className="settings-block">

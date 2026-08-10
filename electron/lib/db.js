@@ -31,6 +31,7 @@ const DEFAULT_DATA = {
     minimizeToTray: false, // if true, closing the window hides to the system tray instead of quitting
     notifyOnMsfsLaunch: true,  // native notification + in-app banner when MSFS 2024 starts
     autoSyncOnLaunch: false,   // if true AND a sync preview with pending changes is already loaded, apply it automatically when MSFS starts
+    soundEnabled: false,       // opt-in synthesized chime on sync-complete / MSFS launch — off by default, no audio asset, see src/lib/chime.js
   },
   addons: {},        // id -> Addon  (see addonScanner.js)
   syncHistory: [],   // { timestamp, plan summary, result } — last 50 kept

@@ -19,6 +19,7 @@ const mockSettings = {
   minimizeToTray: false,
   notifyOnMsfsLaunch: true,
   autoSyncOnLaunch: false,
+  soundEnabled: false,
 };
 
 let mockLaunchAtLogin = false;
