@@ -45,6 +45,70 @@ const dict = {
     themeHighContrast: 'High-Contrast Avionics',
     language: 'Language',
     alwaysActive: 'Always active',
+
+    // Settings — Community folder
+    communityFolderHintPre: 'The one, real Community folder MSFS reads from — no separate library to maintain. Typically under',
+    communityFolderHintPost: '(same location for both the Microsoft Store and Steam versions).',
+    communityNotSet: 'Not set',
+    detectAutomatically: 'Detect automatically',
+    detecting: 'Detecting…',
+    detectFailedHint: "Couldn't find an MSFS install automatically (checked Microsoft Store and every Steam library) — browse to it manually below.",
+
+    // Settings — vault
+    vaultLabel: 'Where your addons actually live',
+    vaultHint: "The first time you scan, any addon already sitting directly in Community gets moved once into the vault below and replaced with a link — MSFS won't notice anything changed. From then on, syncing just adds or removes those links; nothing is ever deleted, and your real files always stay in the vault.",
+
+    // Settings — SimBrief / VATSIM
+    simbriefHint: 'Used to pull your most recent OFP.',
+    vatsimCidLabel: 'VATSIM CID',
+    vatsimCidHint: 'Optional — lets "Pull from VATSIM" in Route Sync grab your own live filed flight plan straight from the network whenever you\'re connected, no SimBrief account needed. Uses VATSIM\'s free public data feed; your CID is only used to find your own session in it and is never sent anywhere else.',
+
+    // Settings — AI classification
+    aiClassificationLabel: 'AI classification (optional — this costs real money)',
+    aiFreeStrong: 'FlightSync itself is free.',
+    aiHintPart1: "This one feature is the exception: it calls Anthropic's Claude API directly using your own API key, and",
+    aiBillsStrong: 'Anthropic bills you directly',
+    aiHintPart2: 'for it (typically a small fraction of a cent per addon with the model used here, but it is not free). FlightSync takes no cut and never sees a payment — the cost is entirely between you and Anthropic, get a key at',
+    aiHintPart3: 'Only used by the "Classify with AI" button in Library, for addons the free built-in matching couldn\'t identify on its own — only folder/title names are sent, never file contents. Stored locally on this machine, never bundled with the app.',
+    aiSkipStrong: 'Leave this blank to skip it entirely',
+    aiHintPart4: '— everything else in FlightSync, including the rest of the addon matching, is completely free and works without it.',
+
+    // Settings — tray / launch at login
+    trayCheckbox: 'Keep running in the system tray when the window is closed',
+    trayHint: 'Off by default — closing the window quits FlightSync normally, same as any app. Turn this on if you want it to keep syncing quietly in the background (tray icon has a quick Rescan action) instead of closing when you click X.',
+    launchAtLoginCheckbox: 'Launch FlightSync when Windows starts',
+    launchAtLoginHint: 'Starts hidden in the tray (no window popping up on login) — pairs with "keep running in the tray" above so MSFS launch detection is watching from the moment you sign in. This is a Windows setting (Startup Apps), not saved in FlightSync\'s own config — removing it from Task Manager\'s Startup tab works too.',
+
+    // Settings — MSFS launch
+    msfsLaunchLabel: 'When MSFS 2024 launches',
+    msfsNotifyCheckbox: 'Notify me (on by default)',
+    msfsAutoSyncCheckbox: 'Automatically apply the sync if a flight plan with pending changes is already loaded',
+    msfsLaunchHint: "FlightSync watches for MSFS 2024 starting and can tell you (or, if you turn on auto-apply, just handle it) right at the moment it matters — before the sim reads your Community folder. Auto-apply only fires if you already have a route loaded in Route Sync with changes waiting; it never invents a route on its own.",
+
+    // Settings — sound
+    soundLabel: 'Sound',
+    soundCheckbox: 'Play a short chime on sync complete and MSFS launch (off by default)',
+    testSound: 'Test sound',
+
+    // Settings — backup & restore
+    backupLabel: 'Backup & restore',
+    backupHint: 'Save your settings (folders, SimBrief ID, theme, language) to a file, or restore them later — handy before reinstalling Windows or moving to a new PC. Your Anthropic API key is never included in the export; re-enter it after importing if you use AI classification.',
+    exportSettings: 'Export settings',
+    importSettings: 'Import settings',
+    backupSavedTo: 'Saved to {path}',
+    backupImported: 'Settings imported.',
+
+    // Settings — updates
+    updatesLabel: 'Updates',
+    updateReady: 'Version {version} is downloaded and ready to install.',
+    updateDownloading: 'Downloading version {version}… {percent}%',
+    updateAvailable: 'Version {version} is available and downloading automatically.',
+    updateChecking: 'Checking for updates…',
+    updateUpToDate: "You're on the latest version (v{version}).",
+    updateError: "Couldn't check for updates: {message}",
+    updateIdle: 'Currently on v{version}.',
+    restartAndInstall: 'Restart & install',
+    checkForUpdates: 'Check for updates',
   },
   de: {
     appName: 'FlightSync',
@@ -85,6 +149,61 @@ const dict = {
     themeHighContrast: 'Hoher Kontrast (Avionik)',
     language: 'Sprache',
     alwaysActive: 'Immer aktiv',
+
+    communityFolderHintPre: 'Der eine, echte Community-Ordner, aus dem MSFS liest — keine separate Bibliothek zu pflegen. Normalerweise unter',
+    communityFolderHintPost: '(gleicher Ort für die Microsoft-Store- und die Steam-Version).',
+    communityNotSet: 'Nicht festgelegt',
+    detectAutomatically: 'Automatisch erkennen',
+    detecting: 'Wird erkannt…',
+    detectFailedHint: 'MSFS-Installation konnte nicht automatisch gefunden werden (Microsoft Store und jede Steam-Bibliothek geprüft) — unten manuell durchsuchen.',
+
+    vaultLabel: 'Wo deine Addons wirklich liegen',
+    vaultHint: 'Beim ersten Scan wird jedes Addon, das bereits direkt in Community liegt, einmalig in den Vault unten verschoben und durch einen Link ersetzt — MSFS bemerkt keine Änderung. Ab dann fügt Sync nur noch Links hinzu oder entfernt sie; nichts wird jemals gelöscht, und deine echten Dateien bleiben immer im Vault.',
+
+    simbriefHint: 'Wird verwendet, um dein aktuellstes OFP zu laden.',
+    vatsimCidLabel: 'VATSIM-CID',
+    vatsimCidHint: 'Optional — ermöglicht „Von VATSIM laden" in Routen-Sync, deinen eigenen live aufgegebenen Flugplan direkt aus dem Netzwerk zu holen, sobald du verbunden bist — kein SimBrief-Konto nötig. Nutzt VATSIMs kostenlosen, öffentlichen Datenfeed; deine CID wird nur verwendet, um deine eigene Sitzung darin zu finden, und niemals sonst wohin gesendet.',
+
+    aiClassificationLabel: 'KI-Klassifizierung (optional — kostet echtes Geld)',
+    aiFreeStrong: 'FlightSync selbst ist kostenlos.',
+    aiHintPart1: 'Diese eine Funktion ist die Ausnahme: Sie ruft Anthropics Claude-API direkt mit deinem eigenen API-Schlüssel auf, und',
+    aiBillsStrong: 'Anthropic stellt dir das direkt in Rechnung',
+    aiHintPart2: '(typischerweise ein Bruchteil eines Cents pro Addon mit dem hier verwendeten Modell, aber nicht kostenlos). FlightSync behält nichts ein und sieht nie eine Zahlung — die Kosten sind ausschließlich zwischen dir und Anthropic, hol dir einen Schlüssel bei',
+    aiHintPart3: 'Wird nur vom „Mit KI klassifizieren"-Button in der Bibliothek genutzt, für Addons, die der kostenlose eingebaute Abgleich allein nicht erkennen konnte — es werden nur Ordner-/Titelnamen gesendet, nie Dateiinhalte. Lokal auf diesem Rechner gespeichert, nie mit der App gebündelt.',
+    aiSkipStrong: 'Leer lassen, um es komplett zu überspringen',
+    aiHintPart4: '— alles andere in FlightSync, einschließlich des restlichen Addon-Abgleichs, ist völlig kostenlos und funktioniert auch ohne das.',
+
+    trayCheckbox: 'Im System-Tray weiterlaufen, wenn das Fenster geschlossen wird',
+    trayHint: 'Standardmäßig aus — das Schließen des Fensters beendet FlightSync normal, wie jede andere App. Aktiviere dies, wenn die App im Hintergrund weiter leise synchronisieren soll (das Tray-Symbol hat einen schnellen Neu-scannen-Befehl), statt beim Klick auf X zu schließen.',
+    launchAtLoginCheckbox: 'FlightSync beim Windows-Start starten',
+    launchAtLoginHint: 'Startet versteckt im Tray (kein aufpoppendes Fenster beim Anmelden) — passt zu „im Tray weiterlaufen" oben, damit die MSFS-Starterkennung ab der Anmeldung aktiv ist. Dies ist eine Windows-Einstellung (Autostart-Apps), nicht in der eigenen Konfiguration von FlightSync gespeichert — Entfernen über den Autostart-Tab des Task-Managers funktioniert ebenso.',
+
+    msfsLaunchLabel: 'Wenn MSFS 2024 startet',
+    msfsNotifyCheckbox: 'Benachrichtigen (standardmäßig an)',
+    msfsAutoSyncCheckbox: 'Sync automatisch anwenden, wenn bereits ein Flugplan mit ausstehenden Änderungen geladen ist',
+    msfsLaunchHint: 'FlightSync erkennt den Start von MSFS 2024 und kann dich genau in dem Moment informieren (oder, mit aktiviertem Auto-Anwenden, es einfach selbst erledigen), in dem es zählt — bevor der Sim deinen Community-Ordner liest. Auto-Anwenden greift nur, wenn in Routen-Sync bereits eine Route mit ausstehenden Änderungen geladen ist; es erfindet nie von sich aus eine Route.',
+
+    soundLabel: 'Ton',
+    soundCheckbox: 'Kurzen Ton bei abgeschlossenem Sync und MSFS-Start abspielen (standardmäßig aus)',
+    testSound: 'Ton testen',
+
+    backupLabel: 'Sichern & wiederherstellen',
+    backupHint: 'Speichere deine Einstellungen (Ordner, SimBrief-ID, Design, Sprache) in einer Datei oder stelle sie später wieder her — praktisch vor einer Windows-Neuinstallation oder einem PC-Wechsel. Dein Anthropic-API-Schlüssel ist nie im Export enthalten; gib ihn nach dem Import erneut ein, falls du die KI-Klassifizierung nutzt.',
+    exportSettings: 'Einstellungen exportieren',
+    importSettings: 'Einstellungen importieren',
+    backupSavedTo: 'Gespeichert unter {path}',
+    backupImported: 'Einstellungen importiert.',
+
+    updatesLabel: 'Updates',
+    updateReady: 'Version {version} ist heruntergeladen und bereit zur Installation.',
+    updateDownloading: 'Version {version} wird heruntergeladen… {percent}%',
+    updateAvailable: 'Version {version} ist verfügbar und wird automatisch heruntergeladen.',
+    updateChecking: 'Suche nach Updates…',
+    updateUpToDate: 'Du hast die neueste Version (v{version}).',
+    updateError: 'Update-Prüfung fehlgeschlagen: {message}',
+    updateIdle: 'Aktuell auf v{version}.',
+    restartAndInstall: 'Neu starten & installieren',
+    checkForUpdates: 'Nach Updates suchen',
   },
   tr: {
     appName: 'FlightSync',
@@ -125,9 +244,70 @@ const dict = {
     themeHighContrast: 'Yüksek Kontrast (Aviyonik)',
     language: 'Dil',
     alwaysActive: 'Her zaman aktif',
+
+    communityFolderHintPre: "MSFS'in okuduğu tek gerçek Community klasörü — ayrı bir kütüphane yönetmeye gerek yok. Genellikle şu konumda:",
+    communityFolderHintPost: '(Microsoft Store ve Steam sürümleri için aynı konum).',
+    communityNotSet: 'Ayarlanmadı',
+    detectAutomatically: 'Otomatik algıla',
+    detecting: 'Algılanıyor…',
+    detectFailedHint: "MSFS kurulumu otomatik olarak bulunamadı (Microsoft Store ve tüm Steam kütüphaneleri kontrol edildi) — aşağıdan elle seçin.",
+
+    vaultLabel: 'Eklentileriniz aslında nerede duruyor',
+    vaultHint: "İlk taramada, doğrudan Community içinde duran her eklenti aşağıdaki vault'a bir kerelik taşınır ve yerine bir bağlantı konur — MSFS hiçbir değişiklik fark etmez. O andan sonra senkron yalnızca bu bağlantıları ekler veya kaldırır; hiçbir şey silinmez ve gerçek dosyalarınız her zaman vault'ta kalır.",
+
+    simbriefHint: 'En son OFP’nizi çekmek için kullanılır.',
+    vatsimCidLabel: 'VATSIM CID',
+    vatsimCidHint: "İsteğe bağlı — bağlıyken Rota Senkronu'ndaki \"VATSIM'den çek\" düğmesinin, SimBrief hesabına gerek kalmadan doğrudan ağdan kendi canlı uçuş planınızı almasını sağlar. VATSIM'in ücretsiz, herkese açık veri akışını kullanır; CID'niz yalnızca kendi oturumunuzu bulmak için kullanılır ve başka hiçbir yere gönderilmez.",
+
+    aiClassificationLabel: 'Yapay zeka sınıflandırması (isteğe bağlı — gerçek para tutar)',
+    aiFreeStrong: "FlightSync'in kendisi ücretsizdir.",
+    aiHintPart1: 'Bu tek özellik istisnadır: kendi API anahtarınızla doğrudan Anthropic’in Claude API’sini çağırır ve',
+    aiBillsStrong: 'ücreti doğrudan Anthropic sizden tahsil eder',
+    aiHintPart2: '(burada kullanılan modelle genellikle eklenti başına bir sentin küçük bir kısmı kadar, ama ücretsiz değildir). FlightSync herhangi bir pay almaz ve ödemeyi hiç görmez — maliyet tamamen sizinle Anthropic arasındadır, buradan bir anahtar alın:',
+    aiHintPart3: "Yalnızca Kütüphane'deki \"Yapay Zeka ile Sınıflandır\" düğmesi tarafından, ücretsiz yerleşik eşleştirmenin tek başına tanıyamadığı eklentiler için kullanılır — yalnızca klasör/başlık adları gönderilir, dosya içerikleri asla. Bu bilgisayarda yerel olarak saklanır, uygulamayla asla paketlenmez.",
+    aiSkipStrong: 'Tamamen atlamak için boş bırakın',
+    aiHintPart4: "— FlightSync'teki geri kalan her şey, eklenti eşleştirmenin geri kalanı dahil, tamamen ücretsizdir ve bu olmadan da çalışır.",
+
+    trayCheckbox: 'Pencere kapatıldığında sistem tepsisinde çalışmaya devam et',
+    trayHint: "Varsayılan olarak kapalı — pencereyi kapatmak FlightSync'i, diğer her uygulama gibi normal şekilde kapatır. Arka planda sessizce senkronize etmeye devam etmesini istiyorsanız bunu açın (tepsi simgesinde hızlı bir Yeniden Tara komutu vardır), X'e tıklandığında kapanmak yerine.",
+    launchAtLoginCheckbox: 'Windows başladığında FlightSync\'i başlat',
+    launchAtLoginHint: "Tepside gizli başlar (girişte pencere açılmaz) — MSFS başlatma algılamasının oturum açar açmaz izlemeye başlaması için yukarıdaki \"tepside çalışmaya devam et\" ile birlikte kullanılır. Bu bir Windows ayarıdır (Başlangıç Uygulamaları), FlightSync'in kendi yapılandırmasında saklanmaz — Görev Yöneticisi'nin Başlangıç sekmesinden kaldırmak da işe yarar.",
+
+    msfsLaunchLabel: 'MSFS 2024 başladığında',
+    msfsNotifyCheckbox: 'Bana bildir (varsayılan olarak açık)',
+    msfsAutoSyncCheckbox: 'Bekleyen değişiklikleri olan bir uçuş planı zaten yüklüyse senkronu otomatik uygula',
+    msfsLaunchHint: "FlightSync, MSFS 2024'ün başlamasını izler ve tam da önemli olduğu anda — simülatör Community klasörünüzü okumadan önce — sizi bilgilendirebilir (ya da otomatik uygulamayı açtıysanız, işi kendisi halleder). Otomatik uygulama yalnızca Rota Senkronu'nda zaten bekleyen değişiklikleri olan bir rota yüklüyse devreye girer; kendiliğinden asla bir rota uydurmaz.",
+
+    soundLabel: 'Ses',
+    soundCheckbox: 'Senkron tamamlandığında ve MSFS başladığında kısa bir ses çal (varsayılan olarak kapalı)',
+    testSound: 'Sesi test et',
+
+    backupLabel: 'Yedekle ve geri yükle',
+    backupHint: "Ayarlarınızı (klasörler, SimBrief ID, tema, dil) bir dosyaya kaydedin veya daha sonra geri yükleyin — Windows'u yeniden kurmadan veya yeni bir bilgisayara geçmeden önce kullanışlıdır. Anthropic API anahtarınız dışa aktarmaya asla dahil edilmez; yapay zeka sınıflandırmasını kullanıyorsanız içe aktardıktan sonra yeniden girin.",
+    exportSettings: 'Ayarları dışa aktar',
+    importSettings: 'Ayarları içe aktar',
+    backupSavedTo: '{path} konumuna kaydedildi',
+    backupImported: 'Ayarlar içe aktarıldı.',
+
+    updatesLabel: 'Güncellemeler',
+    updateReady: '{version} sürümü indirildi ve kurulmaya hazır.',
+    updateDownloading: '{version} sürümü indiriliyor… %{percent}',
+    updateAvailable: '{version} sürümü mevcut ve otomatik olarak indiriliyor.',
+    updateChecking: 'Güncellemeler kontrol ediliyor…',
+    updateUpToDate: 'En son sürümdesiniz (v{version}).',
+    updateError: 'Güncellemeler kontrol edilemedi: {message}',
+    updateIdle: 'Şu anda v{version} sürümünde.',
+    restartAndInstall: 'Yeniden başlat ve kur',
+    checkForUpdates: 'Güncellemeleri kontrol et',
   },
 };
 
-export function translate(lang, key) {
-  return dict[lang]?.[key] ?? dict.en[key] ?? key;
+export function translate(lang, key, params) {
+  let str = dict[lang]?.[key] ?? dict.en[key] ?? key;
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      str = str.replace(`{${k}}`, v);
+    }
+  }
+  return str;
 }

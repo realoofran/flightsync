@@ -33,13 +33,13 @@ export default function SettingsView() {
     setBackupMessage(null);
     try {
       const result = await bridge.settings.exportBackup();
-      if (result.ok) setBackupMessage({ kind: 'ok', text: `Saved to ${result.path}` });
+      if (result.ok) setBackupMessage({ kind: 'ok', text: t('backupSavedTo', { path: result.path }) });
     } catch (err) {
       setBackupMessage({ kind: 'error', text: err.message });
     } finally {
       setBackupBusy(false);
     }
-  }, []);
+  }, [t]);
 
   const importBackup = useCallback(async () => {
     setBackupBusy(true);
@@ -48,14 +48,14 @@ export default function SettingsView() {
       const result = await bridge.settings.importBackup();
       if (result.ok) {
         await refreshSettings();
-        setBackupMessage({ kind: 'ok', text: 'Settings imported.' });
+        setBackupMessage({ kind: 'ok', text: t('backupImported') });
       }
     } catch (err) {
       setBackupMessage({ kind: 'error', text: err.message });
     } finally {
       setBackupBusy(false);
     }
-  }, [refreshSettings]);
+  }, [refreshSettings, t]);
 
   const pick = useCallback(async (key, title) => {
     const folder = await bridge.dialog.pickFolder(title);
@@ -85,14 +85,13 @@ export default function SettingsView() {
       <section className="settings-block">
         <label className="settings-label">{t('communityFolderLabel')}</label>
         <p className="settings-hint">
-          The one, real Community folder MSFS reads from — no separate library to maintain.
-          Typically under <code>%APPDATA%\Microsoft Flight Simulator 2024\Packages\Community</code>{' '}
-          (same location for both the Microsoft Store and Steam versions).
+          {t('communityFolderHintPre')} <code>%APPDATA%\Microsoft Flight Simulator 2024\Packages\Community</code>{' '}
+          {t('communityFolderHintPost')}
         </p>
         <div className="settings-row">
-          <input readOnly value={settings.communityPath ?? ''} placeholder="Not set" />
+          <input readOnly value={settings.communityPath ?? ''} placeholder={t('communityNotSet')} />
           <button className="btn btn--ghost" onClick={detect} disabled={detecting}>
-            <Wand2 size={14} className={detecting ? 'spin' : ''} /> {detecting ? 'Detecting…' : 'Detect automatically'}
+            <Wand2 size={14} className={detecting ? 'spin' : ''} /> {detecting ? t('detecting') : t('detectAutomatically')}
           </button>
           <button className="btn btn--ghost" onClick={() => pick('communityPath', 'Select MSFS Community folder')}>
             <FolderOpen size={14} /> {t('browse')}
@@ -100,28 +99,22 @@ export default function SettingsView() {
         </div>
         {detectFailed && (
           <p className="settings-hint" style={{ color: 'var(--amber-text)' }}>
-            Couldn't find an MSFS install automatically (checked Microsoft Store and every Steam
-            library) — browse to it manually below.
+            {t('detectFailedHint')}
           </p>
         )}
       </section>
 
       {settings.communityPath && (
         <section className="settings-block">
-          <label className="settings-label">Where your addons actually live</label>
-          <p className="settings-hint">
-            The first time you scan, any addon already sitting directly in Community gets moved
-            once into the vault below and replaced with a link — MSFS won't notice anything
-            changed. From then on, syncing just adds or removes those links; nothing is ever
-            deleted, and your real files always stay in the vault.
-          </p>
+          <label className="settings-label">{t('vaultLabel')}</label>
+          <p className="settings-hint">{t('vaultHint')}</p>
           <VaultDiagram communityPath={settings.communityPath} vaultPath={settings.vaultPath} />
         </section>
       )}
 
       <section className="settings-block">
         <label className="settings-label">{t('simbriefLabel')}</label>
-        <p className="settings-hint">Used to pull your most recent OFP.</p>
+        <p className="settings-hint">{t('simbriefHint')}</p>
         <div className="settings-row">
           <input
             defaultValue={settings.simbriefPilotId ?? ''}
@@ -132,13 +125,8 @@ export default function SettingsView() {
       </section>
 
       <section className="settings-block">
-        <label className="settings-label">VATSIM CID</label>
-        <p className="settings-hint">
-          Optional — lets "Pull from VATSIM" in Route Sync grab your own live filed flight plan
-          straight from the network whenever you're connected, no SimBrief account needed. Uses
-          VATSIM's free public data feed; your CID is only used to find your own session in it and
-          is never sent anywhere else.
-        </p>
+        <label className="settings-label">{t('vatsimCidLabel')}</label>
+        <p className="settings-hint">{t('vatsimCidHint')}</p>
         <div className="settings-row">
           <input
             defaultValue={settings.vatsimCid ?? ''}
@@ -149,19 +137,13 @@ export default function SettingsView() {
       </section>
 
       <section className="settings-block">
-        <label className="settings-label">AI classification (optional — this costs real money)</label>
+        <label className="settings-label">{t('aiClassificationLabel')}</label>
         <p className="settings-hint">
-          <strong>FlightSync itself is free.</strong> This one feature is the exception: it calls
-          Anthropic's Claude API directly using your own API key, and <strong>Anthropic bills you
-          directly</strong> for it (typically a small fraction of a cent per addon with the model
-          used here, but it is not free). FlightSync takes no cut and never sees a payment — the
-          cost is entirely between you and Anthropic, get a key at{' '}
-          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>.
-          Only used by the "Classify with AI" button in Library, for addons the free built-in
-          matching couldn't identify on its own — only folder/title names are sent, never file
-          contents. Stored locally on this machine, never bundled with the app.{' '}
-          <strong>Leave this blank to skip it entirely</strong> — everything else in FlightSync,
-          including the rest of the addon matching, is completely free and works without it.
+          <strong>{t('aiFreeStrong')}</strong> {t('aiHintPart1')} <strong>{t('aiBillsStrong')}</strong>{' '}
+          {t('aiHintPart2')}{' '}
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>.{' '}
+          {t('aiHintPart3')}{' '}
+          <strong>{t('aiSkipStrong')}</strong> {t('aiHintPart4')}
         </p>
         <div className="settings-row">
           <input
@@ -192,13 +174,9 @@ export default function SettingsView() {
             checked={settings.minimizeToTray}
             onChange={(e) => updateSettings({ minimizeToTray: e.target.checked })}
           />
-          Keep running in the system tray when the window is closed
+          {t('trayCheckbox')}
         </label>
-        <p className="settings-hint">
-          Off by default — closing the window quits FlightSync normally, same as any app. Turn
-          this on if you want it to keep syncing quietly in the background (tray icon has a quick
-          Rescan action) instead of closing when you click X.
-        </p>
+        <p className="settings-hint">{t('trayHint')}</p>
         {launchAtLogin !== null && (
           <>
             <label className="settings-row settings-row--checkbox" style={{ marginTop: 'var(--space-2)' }}>
@@ -207,27 +185,22 @@ export default function SettingsView() {
                 checked={launchAtLogin}
                 onChange={(e) => toggleLaunchAtLogin(e.target.checked)}
               />
-              <Power size={13} style={{ marginRight: 4 }} /> Launch FlightSync when Windows starts
+              <Power size={13} style={{ marginRight: 4 }} /> {t('launchAtLoginCheckbox')}
             </label>
-            <p className="settings-hint">
-              Starts hidden in the tray (no window popping up on login) — pairs with "keep running
-              in the tray" above so MSFS launch detection is watching from the moment you sign in.
-              This is a Windows setting (Startup Apps), not saved in FlightSync's own config —
-              removing it from Task Manager's Startup tab works too.
-            </p>
+            <p className="settings-hint">{t('launchAtLoginHint')}</p>
           </>
         )}
       </section>
 
       <section className="settings-block">
-        <label className="settings-label">When MSFS 2024 launches</label>
+        <label className="settings-label">{t('msfsLaunchLabel')}</label>
         <label className="settings-row settings-row--checkbox">
           <input
             type="checkbox"
             checked={settings.notifyOnMsfsLaunch}
             onChange={(e) => updateSettings({ notifyOnMsfsLaunch: e.target.checked })}
           />
-          Notify me (on by default)
+          {t('msfsNotifyCheckbox')}
         </label>
         <label className="settings-row settings-row--checkbox">
           <input
@@ -235,29 +208,24 @@ export default function SettingsView() {
             checked={settings.autoSyncOnLaunch}
             onChange={(e) => updateSettings({ autoSyncOnLaunch: e.target.checked })}
           />
-          Automatically apply the sync if a flight plan with pending changes is already loaded
+          {t('msfsAutoSyncCheckbox')}
         </label>
-        <p className="settings-hint">
-          FlightSync watches for MSFS 2024 starting and can tell you (or, if you turn on
-          auto-apply, just handle it) right at the moment it matters — before the sim reads your
-          Community folder. Auto-apply only fires if you already have a route loaded in Route Sync
-          with changes waiting; it never invents a route on its own.
-        </p>
+        <p className="settings-hint">{t('msfsLaunchHint')}</p>
       </section>
 
       <section className="settings-block">
-        <label className="settings-label"><Volume2 size={13} style={{ verticalAlign: -2, marginRight: 4 }} />Sound</label>
+        <label className="settings-label"><Volume2 size={13} style={{ verticalAlign: -2, marginRight: 4 }} />{t('soundLabel')}</label>
         <label className="settings-row settings-row--checkbox">
           <input
             type="checkbox"
             checked={settings.soundEnabled}
             onChange={(e) => updateSettings({ soundEnabled: e.target.checked })}
           />
-          Play a short chime on sync complete and MSFS launch (off by default)
+          {t('soundCheckbox')}
         </label>
         <div className="settings-row">
           <button className="btn btn--ghost btn--small" onClick={() => playChime('syncComplete')}>
-            Test sound
+            {t('testSound')}
           </button>
         </div>
       </section>
@@ -302,18 +270,14 @@ export default function SettingsView() {
       </section>
 
       <section className="settings-block">
-        <label className="settings-label">Backup &amp; restore</label>
-        <p className="settings-hint">
-          Save your settings (folders, SimBrief ID, theme, language) to a file, or restore them
-          later — handy before reinstalling Windows or moving to a new PC. Your Anthropic API key
-          is never included in the export; re-enter it after importing if you use AI classification.
-        </p>
+        <label className="settings-label">{t('backupLabel')}</label>
+        <p className="settings-hint">{t('backupHint')}</p>
         <div className="settings-row">
           <button className="btn btn--ghost btn--small" onClick={exportBackup} disabled={backupBusy}>
-            <FileJson size={13} /> Export settings
+            <FileJson size={13} /> {t('exportSettings')}
           </button>
           <button className="btn btn--ghost btn--small" onClick={importBackup} disabled={backupBusy}>
-            <Upload size={13} /> Import settings
+            <Upload size={13} /> {t('importSettings')}
           </button>
         </div>
         {backupMessage && (
@@ -324,26 +288,26 @@ export default function SettingsView() {
       </section>
 
       <section className="settings-block">
-        <label className="settings-label">Updates</label>
+        <label className="settings-label">{t('updatesLabel')}</label>
         <div className="settings-row">
           <span className="settings-hint" style={{ margin: 0, flex: 1 }}>
-            {status.state === 'ready' && `Version ${status.version} is downloaded and ready to install.`}
-            {status.state === 'downloading' && `Downloading version ${status.version ?? ''}… ${status.percent ?? 0}%`}
-            {status.state === 'available' && `Version ${status.version} is available and downloading automatically.`}
-            {status.state === 'checking' && 'Checking for updates…'}
-            {status.state === 'up-to-date' && `You're on the latest version (v${__APP_VERSION__}).`}
-            {status.state === 'error' && `Couldn't check for updates: ${status.message}`}
+            {status.state === 'ready' && t('updateReady', { version: status.version })}
+            {status.state === 'downloading' && t('updateDownloading', { version: status.version ?? '', percent: status.percent ?? 0 })}
+            {status.state === 'available' && t('updateAvailable', { version: status.version })}
+            {status.state === 'checking' && t('updateChecking')}
+            {status.state === 'up-to-date' && t('updateUpToDate', { version: __APP_VERSION__ })}
+            {status.state === 'error' && t('updateError', { message: status.message })}
             {status.state === 'unavailable' && status.message}
-            {status.state === 'idle' && `Currently on v${__APP_VERSION__}.`}
+            {status.state === 'idle' && t('updateIdle', { version: __APP_VERSION__ })}
           </span>
           {status.state === 'ready' ? (
             <button className="btn btn--primary btn--small" onClick={install}>
-              <Download size={13} /> Restart &amp; install
+              <Download size={13} /> {t('restartAndInstall')}
             </button>
           ) : (
             <button className="btn btn--ghost btn--small" onClick={check} disabled={status.state === 'checking'}>
               {status.state === 'checking' ? <RefreshCw size={13} className="spin" /> : <CheckCircle2 size={13} />}
-              Check for updates
+              {t('checkForUpdates')}
             </button>
           )}
         </div>

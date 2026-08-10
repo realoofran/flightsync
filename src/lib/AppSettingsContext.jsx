@@ -34,7 +34,7 @@ export function AppSettingsProvider({ children }) {
     return fresh;
   }, []);
 
-  const t = useCallback((key) => translate(settings?.language ?? 'en', key), [settings?.language]);
+  const t = useCallback((key, params) => translate(settings?.language ?? 'en', key, params), [settings?.language]);
 
   if (!settings) return null;
 
