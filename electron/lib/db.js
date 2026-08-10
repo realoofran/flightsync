@@ -12,6 +12,7 @@
 import { Low } from 'lowdb';
 import { JSONFile } from 'lowdb/node';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { regionForIcao } from './icaoRegions.js';
 
 /** @type {Low|null} */
@@ -36,6 +37,7 @@ const DEFAULT_DATA = {
   addons: {},        // id -> Addon  (see addonScanner.js)
   syncHistory: [],   // { timestamp, plan summary, result } — last 50 kept
   flightLog: [],      // { timestamp, origin, destination, aircraftIcao, airlineIcao, callsign, distanceNm } — last 200 kept, see recordFlight()
+  loadouts: [],        // { id, name, addonIds, createdAt } — named addon sets the user can re-apply without a flight plan, see createLoadout()
 };
 
 /**
@@ -72,6 +74,7 @@ export async function initDb(userDataPath) {
   // only fills in gaps, never overwrites what the user already has.
   db.data.settings = { ...DEFAULT_DATA.settings, ...db.data.settings };
   db.data.flightLog ??= [];
+  db.data.loadouts ??= [];
   await db.write();
   return db;
 }
@@ -226,6 +229,38 @@ export async function recordFlight(entry) {
   const { data } = getDb();
   data.flightLog.unshift({ timestamp: new Date().toISOString(), ...entry });
   data.flightLog = data.flightLog.slice(0, 200);
+  await getDb().write();
+}
+
+/**
+ * A loadout is just a named, saved addon-id set — created from whatever a
+ * sync preview resolved to (see main.js's library:createLoadout), not from
+ * a bespoke selection UI. Applying one later reuses the exact same
+ * computeSyncPlan/applySyncPlan pipeline a flight-plan sync does (see
+ * loadout:preview/loadout:apply in main.js), so it's held to the same
+ * "always preview before touching real files" rule as everything else.
+ */
+export async function createLoadout(name, addonIds) {
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) throw new Error('Loadout name cannot be empty.');
+  if (!Array.isArray(addonIds) || addonIds.length === 0) {
+    throw new Error('A loadout needs at least one addon.');
+  }
+  const { data } = getDb();
+  const loadout = {
+    id: randomUUID(),
+    name: trimmed,
+    addonIds: [...new Set(addonIds)],
+    createdAt: new Date().toISOString(),
+  };
+  data.loadouts.push(loadout);
+  await getDb().write();
+  return loadout;
+}
+
+export async function deleteLoadout(id) {
+  const { data } = getDb();
+  data.loadouts = data.loadouts.filter(l => l.id !== id);
   await getDb().write();
 }
 

@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld('flightsync', {
     list: () => ipcRenderer.invoke('library:list'),
     removeBrokenLink: (path) => ipcRenderer.invoke('library:removeBrokenLink', { path }),
     getFolderSizes: () => ipcRenderer.invoke('library:getFolderSizes'),
+    listLoadouts: () => ipcRenderer.invoke('library:listLoadouts'),
+    createLoadout: (name, addonIds) => ipcRenderer.invoke('library:createLoadout', { name, addonIds }),
+    deleteLoadout: (id) => ipcRenderer.invoke('library:deleteLoadout', { id }),
     // Fires when the tray's "Rescan Community" menu item completes a scan
     // outside the normal Library-tab flow, so the UI can pick up the fresh
     // results without the user having to click Rescan again themselves.
@@ -56,6 +59,9 @@ contextBridge.exposeInMainWorld('flightsync', {
     apply: (syncPlan) => ipcRenderer.invoke('sync:apply', { syncPlan }),
     history: () => ipcRenderer.invoke('sync:history'),
     undo: () => ipcRenderer.invoke('sync:undo'),
+  },
+  loadout: {
+    preview: (id) => ipcRenderer.invoke('loadout:preview', { id }),
   },
   flightLog: {
     record: (entry) => ipcRenderer.invoke('flightLog:record', entry),

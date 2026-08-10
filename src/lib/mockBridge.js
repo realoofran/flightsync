@@ -36,6 +36,10 @@ const mockAddons = [
   { id: 'a8', folderName: 'fspro-eddf-frankfurt', categoryPath: 'Backup', title: 'Frankfurt EDDF (old copy)', contentType: 'SCENERY', region: 'Europe', candidateIcaos: ['EDDF'], matchedIcao: 'EDDF', matchedAircraftType: null, matchedAirline: null, confirmed: true, alwaysActive: false, nameConflict: true },
 ];
 
+let mockLoadouts = [
+  { id: 'lo1', name: 'Winter Ops A320', addonIds: ['a1', 'a2', 'a5'], createdAt: new Date(Date.now() - 5 * 86400000).toISOString() },
+];
+
 const mockFlightLog = [
   { timestamp: new Date(Date.now() - 1 * 86400000).toISOString(), origin: 'LTFM', destination: 'EDDM', aircraftIcao: 'A21N', airlineIcao: 'THY', callsign: 'THY1598', distanceNm: 897 },
   { timestamp: new Date(Date.now() - 3 * 86400000).toISOString(), origin: 'EDDM', destination: 'EGLL', aircraftIcao: 'A20N', airlineIcao: null, callsign: null, distanceNm: 561 },
@@ -80,6 +84,16 @@ export const mockBridge = {
       a1: 1_800_000_000, a2: 2_100_000_000, a3: 950_000_000, a3b: 1_200_000_000,
       a4: 180_000_000, a5: 4_600_000_000, a6: 620_000_000, a7: 45_000_000, a8: 950_000_000,
     }),
+    listLoadouts: async () => [...mockLoadouts],
+    createLoadout: async (name, addonIds) => {
+      const trimmed = (name ?? '').trim();
+      if (!trimmed) throw new Error('Loadout name cannot be empty.');
+      if (!addonIds || addonIds.length === 0) throw new Error('A loadout needs at least one addon.');
+      const loadout = { id: `lo${Date.now()}`, name: trimmed, addonIds: [...new Set(addonIds)], createdAt: new Date().toISOString() };
+      mockLoadouts.push(loadout);
+      return loadout;
+    },
+    deleteLoadout: async (id) => { mockLoadouts = mockLoadouts.filter(l => l.id !== id); },
   },
   addon: {
     confirmMatch: async (id, patch) => {
@@ -165,6 +179,14 @@ export const mockBridge = {
       },
     ]),
     undo: async () => ({ linked: ['a6', 'a7'], unlinked: ['a1', 'a2', 'a4'], errors: [] }),
+  },
+  loadout: {
+    preview: async (id) => {
+      const loadout = mockLoadouts.find(l => l.id === id);
+      if (!loadout) throw new Error('This loadout no longer exists.');
+      const required = mockAddons.filter(a => loadout.addonIds.includes(a.id));
+      return { syncPlan: { toLink: required, toUnlink: [], unchanged: [] }, loadoutName: loadout.name };
+    },
   },
   flightLog: {
     record: async (entry) => { mockFlightLog.unshift({ timestamp: new Date().toISOString(), ...entry }); },

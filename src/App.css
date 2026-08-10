@@ -1049,3 +1049,80 @@ button.status-panel__stat-row:hover { background: var(--glass-bg-hover); }
   color: var(--text-faint);
   letter-spacing: 0.02em;
 }
+
+/* Loadouts (saved addon sets, Route Sync tab) -------------------------- */
+
+.loadouts-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.loadouts-row__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-right: 2px;
+}
+
+.loadout-chip {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border-bright);
+  overflow: hidden;
+}
+.loadout-chip__apply {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.loadout-chip__apply:hover { color: var(--green-text); }
+.loadout-chip__delete {
+  background: none;
+  border: none;
+  border-left: 1px solid var(--glass-border);
+  color: var(--text-faint);
+  padding: 6px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.loadout-chip__delete:hover { color: var(--red-text); }
+
+.loadout-save-toggle { align-self: flex-start; }
+
+.loadout-save-form {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.loadout-save-form input {
+  flex: 1;
+  min-width: 180px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+.loadout-save-form__error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--red-text);
+}

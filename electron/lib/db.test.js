@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { initDb, upsertScannedAddons, applyAiClassifications, getDb } from './db.js';
+import { initDb, upsertScannedAddons, applyAiClassifications, createLoadout, deleteLoadout, getDb } from './db.js';
 
 let tmpDir;
 
@@ -168,5 +168,42 @@ describe('applyAiClassifications', () => {
       { id: 'ghost', contentType: 'SCENERY', matchedIcao: 'EDDM', confidence: 'high' },
     ]);
     expect(applied).toBe(0);
+  });
+});
+
+describe('createLoadout / deleteLoadout', () => {
+  beforeEach(async () => { await initDb(tmpDir); });
+
+  it('creates a loadout with a trimmed name and de-duplicated addon ids', async () => {
+    const loadout = await createLoadout('  Winter Ops A320  ', ['a1', 'a2', 'a1']);
+    expect(loadout.name).toBe('Winter Ops A320');
+    expect(loadout.addonIds).toEqual(['a1', 'a2']);
+    expect(loadout.id).toBeTruthy();
+    expect(loadout.createdAt).toBeTruthy();
+    expect(getDb().data.loadouts).toHaveLength(1);
+  });
+
+  it('rejects an empty or whitespace-only name', async () => {
+    await expect(createLoadout('', ['a1'])).rejects.toThrow('name cannot be empty');
+    await expect(createLoadout('   ', ['a1'])).rejects.toThrow('name cannot be empty');
+    expect(getDb().data.loadouts).toHaveLength(0);
+  });
+
+  it('rejects a loadout with no addons', async () => {
+    await expect(createLoadout('Empty', [])).rejects.toThrow('at least one addon');
+    await expect(createLoadout('Empty', undefined)).rejects.toThrow('at least one addon');
+  });
+
+  it('deletes a loadout by id, leaving others untouched', async () => {
+    const a = await createLoadout('A', ['a1']);
+    const b = await createLoadout('B', ['a2']);
+    await deleteLoadout(a.id);
+    expect(getDb().data.loadouts.map(l => l.id)).toEqual([b.id]);
+  });
+
+  it('is a silent no-op when deleting an id that does not exist', async () => {
+    await createLoadout('A', ['a1']);
+    await expect(deleteLoadout('nonexistent')).resolves.not.toThrow();
+    expect(getDb().data.loadouts).toHaveLength(1);
   });
 });

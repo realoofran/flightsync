@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Boxes, AlertTriangle, Link2, Info, Rocket, X } from 'lucide-react';
+import { Boxes, AlertTriangle, Link2, Info, Rocket, X, Layers, Save, Trash2 } from 'lucide-react';
 import { getBridge } from '../lib/mockBridge.js';
 import { useAppSettings } from '../lib/AppSettingsContext.jsx';
 import { useSyncState } from '../lib/SyncStateContext.jsx';
@@ -16,9 +16,21 @@ const bridge = getBridge();
 export default function SyncView() {
   const { t } = useAppSettings();
   const {
-    plan, loadingPlan, manualEntry, preview, applying, applyResult, error, lastSync, msfsLaunched,
+    plan, loadingPlan, manualEntry, preview, applying, applyResult, error, lastSync, msfsLaunched, activeLoadoutName,
     setManualEntry, pullFromSimbrief, pullFromVatsim, submitManualPlan, applySync, dismissMsfsLaunched,
+    applyLoadout, saveAsLoadout,
   } = useSyncState();
+
+  const [loadouts, setLoadouts] = useState([]);
+  const refreshLoadouts = useCallback(() => {
+    bridge.library.listLoadouts().then(setLoadouts);
+  }, []);
+  useEffect(() => { refreshLoadouts(); }, [refreshLoadouts]);
+
+  const deleteLoadout = async (id) => {
+    await bridge.library.deleteLoadout(id);
+    refreshLoadouts();
+  };
 
   // The refresh icon on a loaded plan should re-pull from wherever that
   // plan actually came from — previously this always re-pulled from
@@ -68,6 +80,31 @@ export default function SyncView() {
         onManualEntry={!plan && !manualEntry ? () => setManualEntry(true) : null}
         addonCount={(preview?.syncPlan.toLink.length ?? 0) + (preview?.syncPlan.unchanged.length ?? 0)}
       />
+
+      {loadouts.length > 0 && (
+        <motion.div className="loadouts-row" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <span className="loadouts-row__label"><Layers size={13} />Loadouts</span>
+          {loadouts.map((l) => (
+            <span className="loadout-chip" key={l.id}>
+              <button
+                className="loadout-chip__apply"
+                onClick={() => applyLoadout(l.id)}
+                title={`Apply "${l.name}" — ${l.addonIds.length} addon(s), previewed before anything changes`}
+              >
+                {l.name}
+              </button>
+              <button
+                className="loadout-chip__delete"
+                onClick={() => deleteLoadout(l.id)}
+                title={`Delete "${l.name}"`}
+                aria-label={`Delete loadout ${l.name}`}
+              >
+                <Trash2 size={11} />
+              </button>
+            </span>
+          ))}
+        </motion.div>
+      )}
 
       <AnimatePresence>
         {manualEntry && !plan && (
@@ -152,6 +189,7 @@ export default function SyncView() {
             <section className="section">
               <div className="section__header">
                 <h2>{t('syncPlan')}</h2>
+                {activeLoadoutName && <span className="tag tag--muted">LOADOUT · {activeLoadoutName}</span>}
                 <span className="section__count">{totalChanges} change{totalChanges === 1 ? '' : 's'}</span>
               </div>
 
@@ -173,6 +211,8 @@ export default function SyncView() {
               )}
             </section>
 
+            <SaveLoadoutControl saveAsLoadout={saveAsLoadout} onSaved={refreshLoadouts} />
+
             <motion.button
               className="btn btn--primary btn--full"
               onClick={applySync}
@@ -193,6 +233,62 @@ export default function SyncView() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * "Save this exact addon set as a loadout" — the only way loadouts get
+ * created (see saveAsLoadout in SyncStateContext.jsx): no separate
+ * addon-picker UI, just naming whatever the current preview would leave
+ * active. Kept local to this file since it's single-use and its state
+ * (open/name/saving/error) is entirely about this one inline form.
+ */
+function SaveLoadoutControl({ saveAsLoadout, onSaved }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+
+  if (!open) {
+    return (
+      <button className="btn btn--ghost btn--small loadout-save-toggle" onClick={() => setOpen(true)}>
+        <Save size={13} /> Save as Loadout
+      </button>
+    );
+  }
+
+  const submit = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await saveAsLoadout(name);
+      setOpen(false);
+      setName('');
+      onSaved();
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="loadout-save-form">
+      <input
+        autoFocus
+        value={name}
+        placeholder="e.g. Winter Ops A320"
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && submit()}
+      />
+      <button className="btn btn--primary btn--small" onClick={submit} disabled={saving || !name.trim()}>
+        {saving ? 'Saving…' : 'Save'}
+      </button>
+      <button className="btn btn--ghost btn--small" onClick={() => { setOpen(false); setSaveError(null); }}>
+        Cancel
+      </button>
+      {saveError && <p className="loadout-save-form__error">{saveError}</p>}
     </div>
   );
 }

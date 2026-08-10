@@ -28,6 +28,7 @@ export function SyncStateProvider({ children }) {
   const [error, setError] = useState(null);
   const [lastSync, setLastSync] = useState(null);
   const [msfsLaunched, setMsfsLaunched] = useState(false);
+  const [activeLoadoutName, setActiveLoadoutName] = useState(null);
 
   useEffect(() => {
     bridge.sync.history().then(h => setLastSync(h?.[0] ?? null));
@@ -45,6 +46,7 @@ export function SyncStateProvider({ children }) {
     setLoadingPlan(true);
     setError(null);
     setApplyResult(null);
+    setActiveLoadoutName(null);
     try {
       const fetched = await bridge.simbrief.fetchLatest();
       setPlan(fetched);
@@ -61,6 +63,7 @@ export function SyncStateProvider({ children }) {
     setLoadingPlan(true);
     setError(null);
     setApplyResult(null);
+    setActiveLoadoutName(null);
     try {
       const fetched = await bridge.vatsim.fetchMyFlightPlan();
       setPlan(fetched);
@@ -77,6 +80,7 @@ export function SyncStateProvider({ children }) {
     setManualEntry(false);
     setError(null);
     setApplyResult(null);
+    setActiveLoadoutName(null);
     setPlan(manualPlan);
     setLoadingPlan(true);
     try {
@@ -88,6 +92,39 @@ export function SyncStateProvider({ children }) {
       setLoadingPlan(false);
     }
   }, []);
+
+  // Applying a saved loadout reuses the exact same preview/apply UI as a
+  // flight-plan sync — main.js's loadout:preview produces the same
+  // {syncPlan} shape sync:preview does, it's just resolved from a saved
+  // addon-id set instead of ICAO/aircraft matching. plan stays null (no
+  // route to show in FlightStrip/RouteMap/OfpPanel), which also correctly
+  // skips flight-log recording in applySync below — a loadout isn't a
+  // flight.
+  const applyLoadout = useCallback(async (id) => {
+    setLoadingPlan(true);
+    setError(null);
+    setApplyResult(null);
+    setPlan(null);
+    try {
+      const { syncPlan, loadoutName } = await bridge.loadout.preview(id);
+      setPreview({ syncPlan, pendingConfirmation: [] });
+      setActiveLoadoutName(loadoutName);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingPlan(false);
+    }
+  }, []);
+
+  // Captures whatever the CURRENT preview would leave active (toLink +
+  // unchanged) as a named, reusable set — the only way loadouts are
+  // created, deliberately: no separate addon-picker UI, just "save what
+  // I'm looking at right now."
+  const saveAsLoadout = useCallback(async (name) => {
+    if (!preview) throw new Error('Nothing to save yet.');
+    const addonIds = [...preview.syncPlan.toLink, ...preview.syncPlan.unchanged].map(a => a.id);
+    return bridge.library.createLoadout(name, addonIds);
+  }, [preview]);
 
   const applySync = useCallback(async () => {
     if (!preview) return;
@@ -146,8 +183,9 @@ export function SyncStateProvider({ children }) {
   return (
     <SyncStateContext.Provider
       value={{
-        plan, loadingPlan, manualEntry, preview, applying, applyResult, error, lastSync, msfsLaunched,
+        plan, loadingPlan, manualEntry, preview, applying, applyResult, error, lastSync, msfsLaunched, activeLoadoutName,
         setManualEntry, pullFromSimbrief, pullFromVatsim, submitManualPlan, applySync, refreshLastSync,
+        applyLoadout, saveAsLoadout,
         dismissMsfsLaunched: () => setMsfsLaunched(false),
       }}
     >

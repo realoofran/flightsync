@@ -8,7 +8,7 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-import { initDb, getDb, upsertScannedAddons, confirmAddonMatch, setAlwaysActive, recordSyncResult, updateSettings, applyAiClassifications, recordFlight } from './lib/db.js';
+import { initDb, getDb, upsertScannedAddons, confirmAddonMatch, setAlwaysActive, recordSyncResult, updateSettings, applyAiClassifications, recordFlight, createLoadout, deleteLoadout } from './lib/db.js';
 import { scanLibrary } from './lib/addonScanner.js';
 import { computeSyncPlan, applySyncPlan, removeBrokenLink, invertSyncEntry } from './lib/symlinkManager.js';
 import { fetchLatestOfp } from './lib/simbriefClient.js';
@@ -524,6 +524,10 @@ ipcMain.handle('library:getFolderSizes', async () => {
   return computeAddonSizes(addons);
 });
 
+ipcMain.handle('library:listLoadouts', () => getDb().data.loadouts);
+ipcMain.handle('library:createLoadout', (_e, { name, addonIds }) => createLoadout(name, addonIds));
+ipcMain.handle('library:deleteLoadout', (_e, { id }) => deleteLoadout(id));
+
 ipcMain.handle('addon:confirmMatch', (_e, { id, patch }) => confirmAddonMatch(id, patch));
 ipcMain.handle('addon:setAlwaysActive', (_e, { id, value }) => setAlwaysActive(id, value));
 
@@ -595,6 +599,29 @@ ipcMain.handle('sync:apply', async (_e, { syncPlan }) => {
 });
 
 ipcMain.handle('sync:history', () => getDb().data.syncHistory);
+
+// Produces a SyncPlan from a saved loadout's addon-id set instead of a
+// flight plan's ICAO/aircraft matching — everything downstream (the
+// preview UI, sync:apply, undo, history) is identical either way, since
+// computeSyncPlan/applySyncPlan only ever care about a plain "required
+// addons" list, not where it came from.
+ipcMain.handle('loadout:preview', async (_e, { id }) => {
+  const { communityPath } = getDb().data.settings;
+  if (!communityPath) throw new Error('Set your MSFS Community folder in Settings first.');
+
+  const { data } = getDb();
+  const loadout = data.loadouts.find(l => l.id === id);
+  if (!loadout) throw new Error('This loadout no longer exists.');
+
+  const library = Object.values(data.addons);
+  // Addons removed from the library (deleted addon, rescanned away) since
+  // the loadout was saved are silently dropped, same as invertSyncEntry
+  // does for undo — nothing sensible to link for a folder that's gone.
+  const required = loadout.addonIds.map(id2 => data.addons[id2]).filter(Boolean);
+  const syncPlan = await computeSyncPlan(communityPath, required, library);
+
+  return { syncPlan, loadoutName: loadout.name };
+});
 
 ipcMain.handle('flightLog:record', (_e, entry) => recordFlight(entry));
 ipcMain.handle('flightLog:list', () => getDb().data.flightLog);
