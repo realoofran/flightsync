@@ -1,24 +1,30 @@
 // One-off dev script: downloads the public OurAirports dataset and generates
-// a small bundled electron/lib/airportCoords.json (ICAO -> [lat, lon]),
-// filtered to large_airport + medium_airport (the sizes community scenery
-// addons are actually built for). This is the "TODO (v1.1)" already called
-// out in icaoDatabase.js's header comment — a real coordinate source instead
-// of hand-picking a few dozen airports — and is what powers the scenery map
-// view (src/components/SceneryMap.jsx).
+// a small bundled airportCoords.json (ICAO -> [lat, lon]), filtered to
+// large_airport + medium_airport (the sizes community scenery addons are
+// actually built for). This is the "TODO (v1.1)" already called out in
+// icaoDatabase.js's header comment — a real coordinate source instead of
+// hand-picking a few dozen airports.
 //
-// Written to src/lib/ (not electron/lib/) because it's only ever consumed
-// by the renderer (SceneryMap.jsx), which Vite bundles directly via a plain
-// JSON import — same as RouteMap.jsx's purely client-side geo projection,
-// no IPC round-trip needed for static reference data. Not run at app
-// runtime — the generated JSON ships bundled and is read synchronously
-// like any other static data file. Re-run via `npm run airports` only if
-// the dataset needs refreshing.
+// Written to BOTH src/lib/ and electron/lib/ — identical content, two
+// copies, not a shared import. The renderer (SceneryMap.jsx, RouteMap.jsx,
+// greatCircle.js) reads the src/lib/ copy via a plain Vite JSON import; the
+// main process (flightMatcher.js's enroute-scenery matching) needs its own
+// copy because Vite only bundles dist/ and electron/**/* ships as-is into
+// the packaged app — src/ is NOT included in a real build, so a main-process
+// `fs.readFileSync` reaching into src/lib/ would work in dev and silently
+// fail once packaged. Not run at app runtime either way — both are static
+// data files read synchronously, like any other bundled asset. Re-run via
+// `npm run airports` only if the dataset needs refreshing; keeps both
+// copies in sync automatically.
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const outPath = path.join(__dirname, '..', 'src', 'lib', 'airportCoords.json');
+const outPaths = [
+  path.join(__dirname, '..', 'src', 'lib', 'airportCoords.json'),
+  path.join(__dirname, '..', 'electron', 'lib', 'airportCoords.json'),
+];
 const SOURCE_URL = 'https://davidmegginson.github.io/ourairports-data/airports.csv';
 const KEEP_TYPES = new Set(['large_airport', 'medium_airport']);
 
@@ -53,8 +59,9 @@ async function main() {
     kept++;
   }
 
-  await writeFile(outPath, JSON.stringify(out));
-  console.log(`Wrote ${outPath} (${kept} airports)`);
+  const json = JSON.stringify(out);
+  await Promise.all(outPaths.map(p => writeFile(p, json)));
+  console.log(`Wrote ${outPaths.join(' and ')} (${kept} airports)`);
 }
 
 function round(n) {

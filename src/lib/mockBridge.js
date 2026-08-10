@@ -13,6 +13,7 @@ const mockSettings = {
   vatsimCid: '1234567',
   aiApiKey: null,
   includeAlternates: true,
+  includeEnroute: false,
   theme: 'dark',
   language: 'en',
   onboardingComplete: true,

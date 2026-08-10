@@ -2,6 +2,7 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, Tray, Menu, Notification } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -20,6 +21,12 @@ import { fetchVatsimControllers, matchControllersForAirport, fetchVatsimPilotFli
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV === 'development';
+
+// Static ICAO -> [lat, lon] reference data for enroute-scenery matching
+// (see flightMatcher.js's findEnrouteIcaos) — a duplicate of src/lib's copy,
+// not a shared import: the main process can only read electron/**/* at
+// runtime once packaged (src/ isn't bundled), see generate-airport-coords.mjs.
+const airportCoords = JSON.parse(readFileSync(path.join(__dirname, 'lib/airportCoords.json'), 'utf-8'));
 // Set on the login-item's launch args (see setLaunchAtLogin) — lets a
 // Windows-startup launch open straight into the tray instead of popping a
 // full window on every login, the same way Dropbox/Discord/etc. behave.
@@ -559,12 +566,13 @@ ipcMain.handle('simbrief:fetchLatest', async () => {
 });
 
 ipcMain.handle('sync:preview', async (_e, { plan }) => {
-  const { communityPath, includeAlternates } = getDb().data.settings;
+  const { communityPath, includeAlternates, includeEnroute } = getDb().data.settings;
   if (!communityPath) throw new Error('Set your MSFS Community folder in Settings first.');
 
   const library = Object.values(getDb().data.addons);
-  const required = resolveRequiredAddons(plan, library, { includeAlternates });
-  const pendingConfirmation = findPendingConfirmations(plan, library);
+  const matchOptions = { includeAlternates, includeEnroute, airportCoords };
+  const required = resolveRequiredAddons(plan, library, matchOptions);
+  const pendingConfirmation = findPendingConfirmations(plan, library, matchOptions);
   const syncPlan = await computeSyncPlan(communityPath, required, library);
 
   return { syncPlan, pendingConfirmation };

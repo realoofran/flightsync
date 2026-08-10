@@ -33,6 +33,7 @@ const DEFAULT_DATA = {
     notifyOnMsfsLaunch: true,  // native notification + in-app banner when MSFS 2024 starts
     autoSyncOnLaunch: false,   // if true AND a sync preview with pending changes is already loaded, apply it automatically when MSFS starts
     soundEnabled: false,       // opt-in synthesized chime on sync-complete / MSFS launch — off by default, no audio asset, see src/lib/chime.js
+    includeEnroute: false,     // opt-in: also match scenery near any route waypoint, not just origin/destination/alternates — see flightMatcher.js's findEnrouteIcaos(). Only ever applies to SimBrief-pulled plans (the only source with routePoints).
   },
   addons: {},        // id -> Addon  (see addonScanner.js)
   syncHistory: [],   // { timestamp, plan summary, result } — last 50 kept

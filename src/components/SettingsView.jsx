@@ -165,6 +165,15 @@ export default function SettingsView() {
           />
           {t('includeAlternates')}
         </label>
+        <label className="settings-row settings-row--checkbox" style={{ marginTop: 'var(--space-2)' }}>
+          <input
+            type="checkbox"
+            checked={settings.includeEnroute}
+            onChange={(e) => updateSettings({ includeEnroute: e.target.checked })}
+          />
+          {t('includeEnroute')}
+        </label>
+        <p className="settings-hint">{t('includeEnrouteHint')}</p>
       </section>
 
       <section className="settings-block">
