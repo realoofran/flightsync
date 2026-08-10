@@ -65,7 +65,7 @@ export default function SyncView() {
             exit={{ opacity: 0 }}
           >
             <Rocket size={15} />
-            <span>MSFS 2024 just launched — {totalChanges > 0 ? `${totalChanges} change(s) ready below.` : 'your linked addons are already up to date.'}</span>
+            <span>{totalChanges > 0 ? t('msfsLaunchedWithChanges', { count: totalChanges }) : t('msfsLaunchedNoChanges')}</span>
             <button className="banner__dismiss" onClick={dismissMsfsLaunched} aria-label="Dismiss"><X size={14} /></button>
           </motion.div>
         )}
@@ -83,21 +83,21 @@ export default function SyncView() {
 
       {loadouts.length > 0 && (
         <motion.div className="loadouts-row" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <span className="loadouts-row__label"><Layers size={13} />Loadouts</span>
+          <span className="loadouts-row__label"><Layers size={13} />{t('loadoutsLabel')}</span>
           {loadouts.map((l) => (
             <span className="loadout-chip" key={l.id}>
               <button
                 className="loadout-chip__apply"
                 onClick={() => applyLoadout(l.id)}
-                title={`Apply "${l.name}" — ${l.addonIds.length} addon(s), previewed before anything changes`}
+                title={t('loadoutApplyTitle', { name: l.name, count: l.addonIds.length })}
               >
                 {l.name}
               </button>
               <button
                 className="loadout-chip__delete"
                 onClick={() => deleteLoadout(l.id)}
-                title={`Delete "${l.name}"`}
-                aria-label={`Delete loadout ${l.name}`}
+                title={t('loadoutDeleteTitle', { name: l.name })}
+                aria-label={t('loadoutDeleteAria', { name: l.name })}
               >
                 <Trash2 size={11} />
               </button>
@@ -119,18 +119,18 @@ export default function SyncView() {
           <div className="quick-stat">
             <Boxes size={16} />
             <span className="quick-stat__value">{libraryStats.total}</span>
-            <span className="quick-stat__label">addons in library</span>
+            <span className="quick-stat__label">{t('addonsInLibrary')}</span>
           </div>
           <div className="quick-stat">
             <Link2 size={16} />
             <span className="quick-stat__value">{libraryStats.active}</span>
-            <span className="quick-stat__label">always active</span>
+            <span className="quick-stat__label">{t('alwaysActiveStat')}</span>
           </div>
           {libraryStats.pending > 0 && (
             <div className="quick-stat quick-stat--amber">
               <AlertTriangle size={16} />
               <span className="quick-stat__value">{libraryStats.pending}</span>
-              <span className="quick-stat__label">need confirmation</span>
+              <span className="quick-stat__label">{t('needConfirmationStat')}</span>
             </div>
           )}
         </motion.div>
@@ -138,8 +138,8 @@ export default function SyncView() {
 
       {lastSync && !plan && (
         <motion.div className="last-sync" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          Last sync {relativeTime(lastSync.timestamp)} — linked {lastSync.linkedCount}, unlinked {lastSync.unlinkedCount}
-          {lastSync.errorCount > 0 && `, ${lastSync.errorCount} error(s)`}
+          {t('lastSyncSummary', { time: relativeTime(lastSync.timestamp), linked: lastSync.linkedCount, unlinked: lastSync.unlinkedCount })}
+          {lastSync.errorCount > 0 && t('lastSyncErrors', { count: lastSync.errorCount })}
         </motion.div>
       )}
 
@@ -147,10 +147,7 @@ export default function SyncView() {
         <motion.div className="info-callout" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Info size={15} />
           <div>
-            <strong>How syncing works:</strong> scanning links everything found in Community so
-            nothing is disabled right away. Pull a flight plan (or enter one manually) and apply
-            the sync to link only what that flight needs and unlink everything else — that's the
-            step that actually reduces what's active.
+            <strong>{t('howSyncingWorksTitle')}</strong> {t('howSyncingWorksBody')}
           </div>
         </motion.div>
       )}
@@ -178,7 +175,7 @@ export default function SyncView() {
         )}
         {preview?.pendingConfirmation?.length > 0 && (
           <motion.div className="banner banner--amber" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            {preview.pendingConfirmation.length} addon(s) matched this route but need confirmation in the Library tab before they'll sync automatically.
+            {t('pendingConfirmationBanner', { count: preview.pendingConfirmation.length })}
           </motion.div>
         )}
       </AnimatePresence>
@@ -189,15 +186,17 @@ export default function SyncView() {
             <section className="section">
               <div className="section__header">
                 <h2>{t('syncPlan')}</h2>
-                {activeLoadoutName && <span className="tag tag--muted">LOADOUT · {activeLoadoutName}</span>}
+                {activeLoadoutName && <span className="tag tag--muted">{t('loadoutTagPrefix')} · {activeLoadoutName}</span>}
                 <span className="section__count">{totalChanges} change{totalChanges === 1 ? '' : 's'}</span>
               </div>
 
               {totalChanges === 0 && (
                 <p className="sync-plan__reassure">
-                  Nothing to change — every addon this route needs is already linked
-                  {preview.syncPlan.unchanged.length > 0 && ` (${preview.syncPlan.unchanged.length} confirmed below)`},
-                  and nothing else is currently linked in Community that needs removing.
+                  {t('syncReassure', {
+                    confirmedBelow: preview.syncPlan.unchanged.length > 0
+                      ? t('syncReassureConfirmedBelow', { count: preview.syncPlan.unchanged.length })
+                      : '',
+                  })}
                 </p>
               )}
               {preview.syncPlan.toLink.length > 0 && (
@@ -228,8 +227,8 @@ export default function SyncView() {
       <AnimatePresence>
         {applyResult && (
           <motion.div className="banner banner--green" initial={{ opacity: 0, y: -6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }}>
-            Linked {applyResult.linked.length}, unlinked {applyResult.unlinked.length}.
-            {applyResult.errors.length > 0 && ` ${applyResult.errors.length} error(s) — see console.`}
+            {t('applyResultSummary', { linked: applyResult.linked.length, unlinked: applyResult.unlinked.length })}
+            {applyResult.errors.length > 0 && t('applyResultErrors', { count: applyResult.errors.length })}
           </motion.div>
         )}
       </AnimatePresence>
@@ -245,6 +244,7 @@ export default function SyncView() {
  * (open/name/saving/error) is entirely about this one inline form.
  */
 function SaveLoadoutControl({ saveAsLoadout, onSaved }) {
+  const { t } = useAppSettings();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -253,7 +253,7 @@ function SaveLoadoutControl({ saveAsLoadout, onSaved }) {
   if (!open) {
     return (
       <button className="btn btn--ghost btn--small loadout-save-toggle" onClick={() => setOpen(true)}>
-        <Save size={13} /> Save as Loadout
+        <Save size={13} /> {t('saveAsLoadoutButton')}
       </button>
     );
   }
@@ -278,15 +278,15 @@ function SaveLoadoutControl({ saveAsLoadout, onSaved }) {
       <input
         autoFocus
         value={name}
-        placeholder="e.g. Winter Ops A320"
+        placeholder={t('loadoutNamePlaceholder')}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && submit()}
       />
       <button className="btn btn--primary btn--small" onClick={submit} disabled={saving || !name.trim()}>
-        {saving ? 'Saving…' : 'Save'}
+        {saving ? t('savingEllipsis') : t('save')}
       </button>
       <button className="btn btn--ghost btn--small" onClick={() => { setOpen(false); setSaveError(null); }}>
-        Cancel
+        {t('cancel')}
       </button>
       {saveError && <p className="loadout-save-form__error">{saveError}</p>}
     </div>

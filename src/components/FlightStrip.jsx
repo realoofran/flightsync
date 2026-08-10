@@ -62,8 +62,8 @@ export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbri
           <div className="strip__empty-actions">
             <button className="btn btn--primary" onClick={onPullFromSimbrief}>{t('pullFromSimbrief')}</button>
             {onPullFromVatsim && (
-              <button className="btn btn--ghost" onClick={onPullFromVatsim} title="Pull your own live filed flight plan from the VATSIM network">
-                Pull from VATSIM
+              <button className="btn btn--ghost" onClick={onPullFromVatsim} title={t('pullFromVatsimTitle')}>
+                {t('pullFromVatsimButton')}
               </button>
             )}
             {onManualEntry && (
@@ -104,8 +104,8 @@ export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbri
                 className="strip__refresh"
                 onClick={shareCard}
                 disabled={sharing}
-                title="Save this flight as a shareable image"
-                aria-label="Save this flight as a shareable image"
+                title={t('shareFlightImageTitle')}
+                aria-label={t('shareFlightImageTitle')}
                 whileTap={{ scale: 0.9 }}
               >
                 {shared ? <Check size={18} /> : <ImageDown size={18} />}
@@ -114,8 +114,8 @@ export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbri
                 <motion.button
                   className="strip__refresh"
                   onClick={onRefresh}
-                  title={plan.source === 'vatsim' ? 'Re-fetch from VATSIM' : 'Re-fetch from SimBrief'}
-                  aria-label={plan.source === 'vatsim' ? 'Re-fetch from VATSIM' : 'Re-fetch from SimBrief'}
+                  title={plan.source === 'vatsim' ? t('refetchVatsim') : t('refetchSimbrief')}
+                  aria-label={plan.source === 'vatsim' ? t('refetchVatsim') : t('refetchSimbrief')}
                   whileTap={{ scale: 0.9 }}
                 >
                   <RotateCw size={18} />
@@ -136,7 +136,7 @@ export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbri
 
           <div className="strip__meta">
             {plan.source === 'vatsim' && (
-              <span className="tag tag--live"><span className="tag__live-dot" />LIVE ON VATSIM</span>
+              <span className="tag tag--live"><span className="tag__live-dot" />{t('liveOnVatsim')}</span>
             )}
             {plan.airlineIcao && <span className="tag tag--amber">{plan.airlineIcao}</span>}
             <span className="tag">{plan.aircraftIcao}</span>
