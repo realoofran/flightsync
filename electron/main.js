@@ -599,6 +599,18 @@ ipcMain.handle('sync:history', () => getDb().data.syncHistory);
 ipcMain.handle('flightLog:record', (_e, entry) => recordFlight(entry));
 ipcMain.handle('flightLog:list', () => getDb().data.flightLog);
 
+ipcMain.handle('flightCard:save', async (_e, pngArrayBuffer, suggestedName) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Save flight card image',
+    defaultPath: suggestedName || `flightsync-card-${new Date().toISOString().slice(0, 10)}.png`,
+    filters: [{ name: 'PNG image', extensions: ['png'] }],
+  });
+  if (result.canceled || !result.filePath) return { ok: false };
+
+  await fs.writeFile(result.filePath, Buffer.from(pngArrayBuffer));
+  return { ok: true, path: result.filePath };
+});
+
 ipcMain.handle('vatsim:getAtcStatus', async (_e, { icaos }) => {
   const controllers = await fetchVatsimControllers();
   const result = {};

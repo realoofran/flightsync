@@ -1,9 +1,15 @@
-import { RotateCw } from 'lucide-react';
+import { useState } from 'react';
+import { RotateCw, ImageDown, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { countryForFlight } from '../lib/countryFlags.js';
 import { useAppSettings } from '../lib/AppSettingsContext.jsx';
+import { getBridge } from '../lib/mockBridge.js';
+import { buildFlightCardData } from '../lib/flightCardData.js';
+import { drawFlightCard } from '../lib/flightCardRenderer.js';
 import FlagSwatch from './FlagSwatch.jsx';
 import './FlightStrip.css';
+
+const bridge = getBridge();
 
 /**
  * Renders the current SimBrief plan as a paper-flight-strip-styled banner —
@@ -15,9 +21,33 @@ import './FlightStrip.css';
  * version of a mostly-solid-colored flag (many real flags are dominated by
  * one field color) just reads as an unexplained color wash, not a flag.
  */
-export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbrief, onPullFromVatsim, onManualEntry }) {
+export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbrief, onPullFromVatsim, onManualEntry, addonCount = 0 }) {
   const { t } = useAppSettings();
   const flagCountry = plan ? countryForFlight(plan) : null;
+  const [sharing, setSharing] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  const shareCard = async () => {
+    setSharing(true);
+    try {
+      const canvas = document.createElement('canvas');
+      drawFlightCard(canvas, buildFlightCardData(plan, addonCount));
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      const buffer = await blob.arrayBuffer();
+      const suggestedName = `flightsync-${(plan.callsign || plan.origin || 'flight').replace(/[^a-z0-9]/gi, '')}-${plan.origin}-${plan.destination}.png`;
+      const result = await bridge.flightCard.save(buffer, suggestedName);
+      if (result.ok) {
+        setShared(true);
+        setTimeout(() => setShared(false), 2000);
+      }
+    } catch (err) {
+      // Best-effort feature — a failure here (e.g. disk write error) should
+      // never do anything worse than the icon quietly not confirming.
+      console.error('[FlightSync] Failed to save flight card:', err);
+    } finally {
+      setSharing(false);
+    }
+  };
 
   return (
     <AnimatePresence mode="wait">
@@ -69,17 +99,29 @@ export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbri
               <span className="strip__callsign">{plan.callsign || '—'}</span>
             </div>
 
-            {onRefresh && (
+            <div className="strip__actions">
               <motion.button
                 className="strip__refresh"
-                onClick={onRefresh}
-                title={plan.source === 'vatsim' ? 'Re-fetch from VATSIM' : 'Re-fetch from SimBrief'}
-                aria-label={plan.source === 'vatsim' ? 'Re-fetch from VATSIM' : 'Re-fetch from SimBrief'}
+                onClick={shareCard}
+                disabled={sharing}
+                title="Save this flight as a shareable image"
+                aria-label="Save this flight as a shareable image"
                 whileTap={{ scale: 0.9 }}
               >
-                <RotateCw size={18} />
+                {shared ? <Check size={18} /> : <ImageDown size={18} />}
               </motion.button>
-            )}
+              {onRefresh && (
+                <motion.button
+                  className="strip__refresh"
+                  onClick={onRefresh}
+                  title={plan.source === 'vatsim' ? 'Re-fetch from VATSIM' : 'Re-fetch from SimBrief'}
+                  aria-label={plan.source === 'vatsim' ? 'Re-fetch from VATSIM' : 'Re-fetch from SimBrief'}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <RotateCw size={18} />
+                </motion.button>
+              )}
+            </div>
           </div>
 
           <div className="strip__route">

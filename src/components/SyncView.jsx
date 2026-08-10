@@ -66,6 +66,7 @@ export default function SyncView() {
         onPullFromSimbrief={pullFromSimbrief}
         onPullFromVatsim={pullFromVatsim}
         onManualEntry={!plan && !manualEntry ? () => setManualEntry(true) : null}
+        addonCount={(preview?.syncPlan.toLink.length ?? 0) + (preview?.syncPlan.unchanged.length ?? 0)}
       />
 
       <AnimatePresence>

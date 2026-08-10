@@ -61,6 +61,9 @@ contextBridge.exposeInMainWorld('flightsync', {
     record: (entry) => ipcRenderer.invoke('flightLog:record', entry),
     list: () => ipcRenderer.invoke('flightLog:list'),
   },
+  flightCard: {
+    save: (pngArrayBuffer, suggestedName) => ipcRenderer.invoke('flightCard:save', pngArrayBuffer, suggestedName),
+  },
   vatsim: {
     getAtcStatus: (icaos) => ipcRenderer.invoke('vatsim:getAtcStatus', { icaos }),
     fetchMyFlightPlan: () => ipcRenderer.invoke('vatsim:fetchMyFlightPlan'),

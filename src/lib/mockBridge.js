@@ -169,6 +169,9 @@ export const mockBridge = {
     record: async (entry) => { mockFlightLog.unshift({ timestamp: new Date().toISOString(), ...entry }); },
     list: async () => [...mockFlightLog],
   },
+  flightCard: {
+    save: async () => ({ ok: true, path: 'C:\\fake\\path\\flightsync-card.png' }),
+  },
   vatsim: {
     fetchMyFlightPlan: async () => ({
       origin: 'KJFK',

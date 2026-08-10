@@ -119,7 +119,12 @@ publishing, generate a token at
   flight plan. Loading the route map on the Sync tab fetches map tiles from
   OpenStreetMap's public tile server (`tile.openstreetmap.org`) — no
   API key, no account, and no data about you is sent beyond the ordinary
-  image requests a browser would make. Pressing "Classify with AI" in
+  image requests a browser would make. The "ATC online" panel and "Pull
+  from VATSIM" both fetch VATSIM's free, public network-status feed
+  (`data.vatsim.net`) — an unauthenticated GET request with no data about
+  you attached; "Pull from VATSIM" additionally uses your configured CID
+  locally, after the fact, to find your own session in that already-public
+  feed, never sending it anywhere. Pressing "Classify with AI" in
   Library sends only the folder name, title, and category path of addons
   the built-in matching couldn't identify — never file contents — to
   Anthropic's API, using an API key you provide yourself in Settings
