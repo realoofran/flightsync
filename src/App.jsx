@@ -208,7 +208,7 @@ export default function App() {
                 {tab === 'sync' && <SyncView />}
                 {tab === 'library' && <LibraryView />}
                 {tab === 'history' && <HistoryView />}
-                {tab === 'insights' && <InsightsView />}
+                {tab === 'insights' && <InsightsView setTab={setTab} />}
                 {tab === 'settings' && <SettingsView />}
               </Suspense>
             </motion.div>

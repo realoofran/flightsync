@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, BookMarked } from 'lucide-react';
+import { BarChart3, BookMarked, Repeat } from 'lucide-react';
 import { getBridge } from '../lib/mockBridge.js';
+import { useSyncState } from '../lib/SyncStateContext.jsx';
 import AddonBreakdown from './AddonBreakdown.jsx';
 import { formatBytes } from '../lib/formatBytes.js';
 import { CONTENT_TYPE_COLORS } from '../lib/contentTypeColors.js';
@@ -18,7 +19,8 @@ const bridge = getBridge();
  * (linked vs unlinked), so it gets a legend and the app's existing
  * green/red semantic pair rather than a third arbitrary color.
  */
-export default function InsightsView() {
+export default function InsightsView({ setTab }) {
+  const { submitManualPlan } = useSyncState();
   const [addons, setAddons] = useState([]);
   const [sizes, setSizes] = useState(null);
   const [history, setHistory] = useState([]);
@@ -30,6 +32,30 @@ export default function InsightsView() {
     bridge.sync.history().then(setHistory);
     bridge.flightLog.list().then(setFlightLog);
   }, []);
+
+  // Rebuilds a manual-entry-shaped FlightPlan from a logged flight and
+  // feeds it straight into the same submitManualPlan -> sync:preview
+  // pipeline manual entry already uses — no new backend logic, same
+  // "reuse the existing plumbing" approach as Loadouts and the VATSIM
+  // pull. Weights/fuel/route-string aren't recoverable from a logbook
+  // entry, so ofp stays null, same as any other manual-style plan.
+  const flyAgain = (f) => {
+    submitManualPlan({
+      origin: f.origin,
+      destination: f.destination,
+      alternates: [],
+      aircraftIcao: f.aircraftIcao,
+      airlineIcao: f.airlineIcao ?? null,
+      callsign: f.callsign ?? null,
+      fetchedAt: new Date().toISOString(),
+      source: 'logbook',
+      originCoord: null,
+      destinationCoord: null,
+      routePoints: [],
+      ofp: null,
+    });
+    setTab?.('sync');
+  };
 
   const loadSizes = async () => {
     setLoadingSizes(true);
@@ -215,6 +241,14 @@ export default function InsightsView() {
                         {f.aircraftIcao ?? '—'}{f.airlineIcao ? ` · ${f.airlineIcao}` : ''}{f.callsign ? ` · ${f.callsign}` : ''}
                       </span>
                       <span className="logbook-route-row__distance">{f.distanceNm ? `${f.distanceNm} nm` : '—'}</span>
+                      <button
+                        className="logbook-route-row__fly-again"
+                        onClick={() => flyAgain(f)}
+                        disabled={!f.origin || !f.destination || !f.aircraftIcao}
+                        title="Set this up as the active flight plan in Route Sync"
+                      >
+                        <Repeat size={11} /> Fly again
+                      </button>
                     </div>
                   ))}
                 </div>
