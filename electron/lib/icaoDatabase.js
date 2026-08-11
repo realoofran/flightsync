@@ -70,8 +70,13 @@ export function extractIcaoCodes(raw) {
   const found = new Set();
 
   // 1. Direct ICAO pattern match (covers the vast majority of scenery addons —
-  //    "fspro-eddm-munich", "[FSDT] KJFK v3", "orbx_eddh_hamburg")
-  const upper = raw.toUpperCase();
+  //    "fspro-eddm-munich", "[FSDT] KJFK v3", "orbx_eddh_hamburg"). Normalize
+  //    underscores to spaces first — JS regex \b treats "_" as a word
+  //    character, so "APX0_EDDS.bgl" (an extremely common MSFS layout.json
+  //    bgl-filename shape) would otherwise never reach a real word boundary
+  //    before "EDDS" and silently never match at all. Hyphens already form a
+  //    boundary on their own and don't need this.
+  const upper = raw.toUpperCase().replace(/_/g, ' ');
   const matches = upper.match(new RegExp(ICAO_REGEX, 'g')) || [];
   for (const m of matches) {
     // Filter out common false positives: version tags, resolution tags etc.
@@ -99,6 +104,24 @@ function normalizeSeparators(text) {
   return text.toLowerCase().replace(/[-_]+/g, ' ');
 }
 
+// Well-known scenery/airport developer tags. Positioned immediately before
+// an ICAO candidate ("orbx-eddm-munich", "FSDT KJFK v3"), this is exactly
+// the pattern a human skimming a folder name uses to instantly parse
+// "studio, then subject" — a strong signal that the OTHER, non-studio
+// candidate is the real target, even with no brackets and no known place
+// name to corroborate it. Kept separate from icaoDatabase's
+// FALSE_POSITIVE_WORDS (which only ever subtracts a studio tag from being
+// mistaken FOR an ICAO) — this list actively adds confidence to whatever
+// candidate sits next to one of these tags.
+const STUDIO_PREFIX_WORDS = [
+  'orbx', 'fsdt', 'fsdreamteam', 'flytampa', 'aerosoft', 'justsim',
+  'taimodels', 'drzewiecki', 'gaya', 'gayasimulations', 'justflight',
+  'inibuilds', 'fspro', 'fsimstudios', 'lvfr', 'latinvfr', 'simwings',
+  'verticalsim', 'imaginesim', 'digitaldesign', 'aeksimulations',
+  'flightbeam', 'nyscenerydesign', 'justsimstudio', 'fseries', 'fsplus',
+];
+const STUDIO_PREFIX_PATTERN = STUDIO_PREFIX_WORDS.join('|');
+
 /**
  * Picks the single most likely ICAO out of a set of raw regex candidates by
  * checking for "strong signal" positioning — the kind of placement a human
@@ -117,12 +140,19 @@ function normalizeSeparators(text) {
  *    word, i.e. looks like "ICAO - Place Name"
  *  - the code is independently corroborated by a known airport-name match
  *    in the same text (both "EDDM" and "munich" appear together)
+ *  - the code is immediately preceded by a known studio/developer tag
+ *    ("orbx-eddm-munich")
+ *  - the code shows up independently in 2+ of the raw source fields passed
+ *    via `fieldTexts` (folder name, manifest title, category-folder hint,
+ *    layout.json content paths) — agreement across independent sources is
+ *    itself a strong signal even with no positional cue in any single one
  *
  * @param {string} text          combined folder name + title + category hint
  * @param {string[]} candidates  raw candidate ICAOs already found by extractIcaoCodes
+ * @param {string[]} [fieldTexts]  the individual source strings `text` was combined from, for cross-field corroboration
  * @returns {string|null} the confidently-resolved ICAO, or null if still ambiguous
  */
-export function resolveConfidentIcao(text, candidates) {
+export function resolveConfidentIcao(text, candidates, fieldTexts) {
   if (candidates.length === 0) return null;
   if (candidates.length === 1) return candidates[0];
 
@@ -134,6 +164,12 @@ export function resolveConfidentIcao(text, candidates) {
     // Corroborated by a known place name for that same ICAO appearing in the text
     for (const [name, icao] of Object.entries(ICAO_BY_NAME)) {
       if (icao === code && lower.includes(name)) return true;
+    }
+    if (new RegExp(`(?:${STUDIO_PREFIX_PATTERN})[\\s\\-_]+${code}\\b`, 'i').test(text)) return true;
+    if (fieldTexts) {
+      const fieldRegex = new RegExp(`\\b${code}\\b`, 'i');
+      const agreeingFields = fieldTexts.filter(t => t && fieldRegex.test(t)).length;
+      if (agreeingFields >= 2) return true;
     }
     return false;
   });

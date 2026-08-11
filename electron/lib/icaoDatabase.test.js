@@ -30,6 +30,15 @@ describe('extractIcaoCodes', () => {
     expect(extractIcaoCodes('aerosoft-airport-eddk-cologne-bonn')).toContain('EDDK');
   });
 
+  it('finds a bare ICAO code across underscore-separated words, not just hyphens', () => {
+    // Regression: JS regex \b treats "_" as a word character, so a bgl
+    // filename shape like "APX0_EDDS.bgl" (extremely common in MSFS
+    // layout.json content paths) never reached a real word boundary before
+    // "EDDS" and silently matched nothing at all.
+    expect(extractIcaoCodes('scenery/world/scenery/APX0_EDDS.bgl')).toContain('EDDS');
+    expect(extractIcaoCodes('orbx_eddh_hamburg.bgl')).toContain('EDDH');
+  });
+
   it('filters generic airport/name-fragment false positives found in real confirm queues', () => {
     expect(extractIcaoCodes('aeksimulations-airport-ltdx-cukurova-intl')).not.toContain('INTL');
     expect(extractIcaoCodes('dfflyerdirect-city-frankfurt')).not.toContain('CITY');
@@ -77,5 +86,31 @@ describe('resolveConfidentIcao', () => {
     // no strong positional signal must fall through to manual confirm.
     const result = resolveConfidentIcao('generic-addon-name', ['EDDM', 'EDDF']);
     expect(result).toBeNull();
+  });
+
+  it('resolves a code immediately preceded by a known studio/developer tag', () => {
+    // Fictional codes with no ICAO_BY_NAME entry, no brackets, and not the
+    // first token of the string — the only signal is that EDQC (unlike
+    // EDQD) sits directly after the "fsdt" studio tag, exactly the pattern
+    // a human reads as "FSDT's EDQC package", not "EDQC's EDQD package".
+    expect(resolveConfidentIcao('fsdt-edqc-edqd', ['EDQC', 'EDQD'])).toBe('EDQC');
+  });
+
+  it('resolves a code corroborated independently across 2+ source fields, with no positional or name-table signal', () => {
+    // Fictional codes with no ICAO_BY_NAME entry and no studio-tag/bracket/
+    // leading-token cue — the ONLY signal is that EDQC (unlike EDQD) shows
+    // up independently in both the folder name and the manifest title.
+    const folderName = 'genericstudio-edqc-edqd-bundle';
+    const title = 'EDQC Enhanced Package';
+    const categoryHint = '';
+    const text = `${folderName} ${title} ${categoryHint}`;
+    expect(resolveConfidentIcao(text, ['EDQC', 'EDQD'], [folderName, title, categoryHint])).toBe('EDQC');
+  });
+
+  it('does not corroborate across fields when a code only appears in one field', () => {
+    const folderName = 'genericstudio-edqc-edqd-bundle';
+    const title = '';
+    const categoryHint = '';
+    expect(resolveConfidentIcao(folderName, ['EDQC', 'EDQD'], [folderName, title, categoryHint])).toBeNull();
   });
 });

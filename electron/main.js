@@ -105,7 +105,7 @@ function setupTray() {
             try {
               const { settings } = getDb().data;
               if (!settings.communityPath) return;
-              const { addons: scanned, warnings } = await scanLibrary(settings.communityPath, settings.vaultPath);
+              const { addons: scanned, warnings } = await scanLibrary(settings.communityPath, settings.vaultPath, getDb().data.learnedTokens);
               await upsertScannedAddons(scanned);
               mainWindow?.webContents.send('library:rescanned', { addons: Object.values(getDb().data.addons), warnings });
               notify('FlightSync', `Rescan complete — ${scanned.length} addon(s) found.`);
@@ -516,7 +516,7 @@ ipcMain.handle('library:scan', async () => {
   const { communityPath, vaultPath } = getDb().data.settings;
   if (!communityPath) throw new Error('Set your MSFS Community folder in Settings first.');
 
-  const { addons: scanned, warnings } = await scanLibrary(communityPath, vaultPath);
+  const { addons: scanned, warnings } = await scanLibrary(communityPath, vaultPath, getDb().data.learnedTokens);
   await upsertScannedAddons(scanned);
   return { addons: Object.values(getDb().data.addons), warnings };
 });

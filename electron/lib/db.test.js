@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { initDb, upsertScannedAddons, applyAiClassifications, createLoadout, deleteLoadout, getDb } from './db.js';
+import { initDb, upsertScannedAddons, applyAiClassifications, confirmAddonMatch, createLoadout, deleteLoadout, getDb } from './db.js';
 
 let tmpDir;
 
@@ -58,6 +58,21 @@ describe('initDb — settings migration', () => {
     // was already using the app before onboardingComplete existed, so they
     // must NOT be sent back through the first-run wizard.
     expect(db.data.settings.onboardingComplete).toBe(true);
+  });
+
+  it('backfills learnedTokens (added in v1.8.0) for a db.json that predates it entirely', async () => {
+    const file = path.join(tmpDir, 'flightsync-db.json');
+    await fs.writeFile(file, JSON.stringify({
+      settings: { communityPath: 'D:\\MSFS\\Community' },
+      addons: { a1: { id: 'a1', matchedIcao: 'EDDM' } },
+      syncHistory: [],
+    }));
+
+    const db = await initDb(tmpDir);
+
+    expect(db.data.learnedTokens).toEqual({ icao: {}, aircraftType: {}, airline: {} });
+    // Existing addon data untouched by the migration.
+    expect(db.data.addons.a1.matchedIcao).toBe('EDDM');
   });
 
   it('leaves onboardingComplete false for a genuinely fresh install with no communityPath', async () => {
@@ -169,6 +184,60 @@ describe('applyAiClassifications', () => {
       { id: 'ghost', contentType: 'SCENERY', matchedIcao: 'EDDM', confidence: 'high' },
     ]);
     expect(applied).toBe(0);
+  });
+});
+
+describe('confirmAddonMatch — learning from manual corrections', () => {
+  beforeEach(async () => { await initDb(tmpDir); });
+
+  it('learns a distinctive token from a scenery ICAO the heuristic never resolved', async () => {
+    await upsertScannedAddons([scannedAddon({
+      id: 'a1', folderName: 'somestudio-unresolvedplace-x', title: 'Unresolved Place Scenery',
+      contentType: 'SCENERY', matchedIcao: null, confirmed: false,
+    })]);
+    await confirmAddonMatch('a1', { matchedIcao: 'EDQZ' });
+
+    expect(getDb().data.addons.a1.matchedIcao).toBe('EDQZ');
+    expect(getDb().data.addons.a1.confirmed).toBe(true);
+    expect(getDb().data.learnedTokens.icao.unresolvedplace).toBe('EDQZ');
+  });
+
+  it('learns an airline token from a livery the heuristic never resolved', async () => {
+    await upsertScannedAddons([scannedAddon({
+      id: 'a1', folderName: 'repaintcrew-somenicheairline-a320', title: 'Some Niche Airline A320',
+      contentType: 'LIVERY', matchedIcao: null, matchedAircraftType: 'A320', matchedAirline: null, confirmed: false,
+    })]);
+    await confirmAddonMatch('a1', { matchedAirline: 'NCH' });
+
+    expect(getDb().data.learnedTokens.airline.somenicheairline).toBe('NCH');
+    // "airline" alone is far too generic a word to learn — nearly every
+    // livery in existence has it somewhere in its name/title.
+    expect(getDb().data.learnedTokens.airline.airline).toBeUndefined();
+  });
+
+  it('does not (re-)learn when the confirmation just accepts an already-correct heuristic guess unchanged', async () => {
+    await upsertScannedAddons([scannedAddon({
+      id: 'a1', folderName: 'somestudio-alreadyresolved-x', title: 'Already Resolved Scenery',
+      contentType: 'SCENERY', matchedIcao: 'EDDM', confirmed: false,
+    })]);
+    await confirmAddonMatch('a1', { matchedIcao: 'EDDM' });
+
+    expect(getDb().data.learnedTokens.icao.alreadyresolved).toBeUndefined();
+  });
+
+  it('a learned token then resolves a different, never-scanned addon that shares it on the next scan', async () => {
+    await upsertScannedAddons([scannedAddon({
+      id: 'a1', folderName: 'somestudio-unresolvedplace-x', title: 'Unresolved Place Scenery',
+      contentType: 'SCENERY', matchedIcao: null, confirmed: false,
+    })]);
+    await confirmAddonMatch('a1', { matchedIcao: 'EDQZ' });
+
+    // A second, unrelated-studio addon that happens to share the learned
+    // distinctive word — this is the actual point of learning: the SAME
+    // scan-time fallback consulted by addonScanner.js's scanOneAddon().
+    const { lookupLearnedValue } = await import('./learnedPatterns.js');
+    const result = lookupLearnedValue(getDb().data.learnedTokens.icao, 'differentvendor-unresolvedplace-v2 Unresolved Place Rebuilt');
+    expect(result).toBe('EDQZ');
   });
 });
 

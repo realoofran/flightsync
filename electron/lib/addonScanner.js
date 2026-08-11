@@ -31,9 +31,14 @@ import { promisify } from 'node:util';
 import { extractIcaoCodes, resolveConfidentIcao } from './icaoDatabase.js';
 import { regionForIcao } from './icaoRegions.js';
 import { CONTENT_TYPES } from './contentTypes.js';
+import { lookupLearnedValue } from './learnedPatterns.js';
 
 const execFileAsync = promisify(execFile);
 const MAX_SCAN_DEPTH = 10;
+// Threaded through from db.data.learnedTokens (see learnedPatterns.js) by
+// every real caller; only ever falls back to this empty default in tests
+// that call scanLibrary()/scanOneAddon() directly without a DB behind them.
+const EMPTY_LEARNED_TOKENS = { icao: {}, aircraftType: {}, airline: {} };
 const VAULT_README_NAME = 'README - DO NOT DELETE THIS FOLDER.txt';
 const VAULT_README_TEXT = `This folder holds the REAL files for every addon FlightSync manages.
 
@@ -51,9 +56,12 @@ Safe to otherwise ignore. FlightSync manages everything in here on its own.
 /**
  * @param {string} communityPath  the user's real, single MSFS Community folder
  * @param {string} vaultPath      hidden sibling folder FlightSync manages — created if missing
+ * @param {{icao: Record<string,string>, aircraftType: Record<string,string>, airline: Record<string,string>}} [learnedTokens]
+ *   this user's own past manual corrections (db.data.learnedTokens) — consulted as a last-resort
+ *   fallback whenever the heuristic itself can't resolve a field, see learnedPatterns.js
  * @returns {Promise<{addons: Addon[], warnings: {path: string, message: string}[]}>}
  */
-export async function scanLibrary(communityPath, vaultPath) {
+export async function scanLibrary(communityPath, vaultPath, learnedTokens = EMPTY_LEARNED_TOKENS) {
   await fs.mkdir(vaultPath, { recursive: true });
   await protectVaultFolder(vaultPath);
 
@@ -61,7 +69,7 @@ export async function scanLibrary(communityPath, vaultPath) {
   await migrateRealFolders(communityPath, vaultPath, [], 0, warnings);
 
   const addons = [];
-  await walkVault(vaultPath, vaultPath, [], addons, 0, warnings);
+  await walkVault(vaultPath, vaultPath, [], addons, 0, warnings, learnedTokens);
   markNameConflicts(addons, warnings);
   return { addons, warnings };
 }
@@ -254,7 +262,7 @@ async function migrateOneFolder(realPath, vaultPath, warnings) {
   await fs.symlink(vaultTarget, realPath, process.platform === 'win32' ? 'junction' : 'dir');
 }
 
-async function walkVault(absoluteDir, vaultRoot, categoryChain, results, depth, warnings) {
+async function walkVault(absoluteDir, vaultRoot, categoryChain, results, depth, warnings, learnedTokens) {
   if (depth > MAX_SCAN_DEPTH) {
     warnings.push({ path: absoluteDir, code: 'depth-limit', message: `Nested more than ${MAX_SCAN_DEPTH} levels deep` });
     return;
@@ -273,7 +281,7 @@ async function walkVault(absoluteDir, vaultRoot, categoryChain, results, depth, 
   if (isAddonRoot) {
     const folderName = path.basename(absoluteDir);
     try {
-      const addon = await scanOneAddon(absoluteDir, folderName, categoryChain);
+      const addon = await scanOneAddon(absoluteDir, folderName, categoryChain, learnedTokens);
       if (addon) results.push(addon);
     } catch (err) {
       warnings.push({ path: absoluteDir, code: 'read-error', message: err.code ?? err.message });
@@ -292,11 +300,11 @@ async function walkVault(absoluteDir, vaultRoot, categoryChain, results, depth, 
     // Linker itself), and this check alone caused a scan to silently find
     // zero addons despite the library having hundreds.
     if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-    await walkVault(path.join(absoluteDir, entry.name), vaultRoot, [...categoryChain, entry.name], results, depth + 1, warnings);
+    await walkVault(path.join(absoluteDir, entry.name), vaultRoot, [...categoryChain, entry.name], results, depth + 1, warnings, learnedTokens);
   }
 }
 
-async function scanOneAddon(absolutePath, folderName, categoryChain) {
+async function scanOneAddon(absolutePath, folderName, categoryChain, learnedTokens = EMPTY_LEARNED_TOKENS) {
   const manifestPath = path.join(absolutePath, 'manifest.json');
   let manifest = null;
   try {
@@ -309,6 +317,11 @@ async function scanOneAddon(absolutePath, folderName, categoryChain) {
 
   const title = manifest?.title ?? folderName;
   const categoryHintText = categoryChain.join(' ');
+  // manifest.json also carries a creator/manufacturer field on most modern
+  // packages — cheap extra signal for the aircraft/airline pattern matchers
+  // below (e.g. a virtual-airline-branded livery whose folder name alone
+  // wouldn't spell out the airline, but manifest.creator does).
+  const creatorHintText = manifest?.creator ?? manifest?.manufacturer ?? '';
   let contentType = normalizeContentType(manifest?.content_type, categoryHintText);
 
   // Older/simpler addons often ship without a manifest content_type at all
@@ -322,29 +335,43 @@ async function scanOneAddon(absolutePath, folderName, categoryChain) {
     contentType = 'SCENERY';
   }
 
-  const combinedText = `${folderName} ${title} ${categoryHintText}`;
+  const combinedText = `${folderName} ${title} ${categoryHintText} ${creatorHintText}`;
 
-  const candidateIcaos = contentType === 'SCENERY'
-    ? dedupe([
-        ...extractIcaoCodes(folderName),
-        ...extractIcaoCodes(title),
-        ...extractIcaoCodes(categoryHintText),
-      ])
-    : [];
+  let candidateIcaos = [];
+  let matchedIcao = null;
+  if (contentType === 'SCENERY') {
+    // layout.json lists every file the package ships (bgl paths etc.) —
+    // often spells out the exact ICAO even when the folder name/title/
+    // category are all too generic to match on their own (a rebrand, a
+    // vague "Airport Enhancement X" title, no manifest at all).
+    const layoutHintText = await readLayoutContentHints(absolutePath);
+    candidateIcaos = dedupe([
+      ...extractIcaoCodes(folderName),
+      ...extractIcaoCodes(title),
+      ...extractIcaoCodes(categoryHintText),
+      ...extractIcaoCodes(layoutHintText),
+    ]);
 
-  // Confidence-scored resolution: even with multiple raw regex candidates,
-  // auto-resolve when exactly one sits in a position a human would trust
-  // instantly ("[EDDM]", "EDDM - Munich", name-corroborated, etc). Only
-  // genuinely ambiguous cases fall through to the manual confirm queue.
-  const matchedIcao = resolveConfidentIcao(combinedText, candidateIcaos);
+    // Confidence-scored resolution: even with multiple raw regex candidates,
+    // auto-resolve when exactly one sits in a position a human would trust
+    // instantly ("[EDDM]", "EDDM - Munich", a known studio tag right before
+    // it, independently corroborated across 2+ of the source fields, etc).
+    // Only genuinely ambiguous cases fall through to the manual queue — and
+    // even those get one more chance against this user's own past manual
+    // corrections (learnedPatterns.js) before finally giving up.
+    matchedIcao = resolveConfidentIcao(combinedText, candidateIcaos, [folderName, title, categoryHintText, layoutHintText])
+      ?? lookupLearnedValue(learnedTokens.icao, combinedText);
+  }
 
-  const matchedAircraftType = contentType === 'LIVERY' || contentType === 'AIRCRAFT'
-    ? guessAircraftType(combinedText)
-    : null;
+  let matchedAircraftType = null;
+  if (contentType === 'LIVERY' || contentType === 'AIRCRAFT') {
+    matchedAircraftType = guessAircraftType(combinedText) ?? lookupLearnedValue(learnedTokens.aircraftType, combinedText);
+  }
 
-  const matchedAirline = contentType === 'LIVERY'
-    ? guessAirlineCode(combinedText)
-    : null;
+  let matchedAirline = null;
+  if (contentType === 'LIVERY') {
+    matchedAirline = guessAirlineCode(combinedText) ?? lookupLearnedValue(learnedTokens.airline, combinedText);
+  }
 
   return {
     id: hashPath(absolutePath),
@@ -481,6 +508,24 @@ function guessAirlineCode(text) {
     if (pattern.test(text)) return code;
   }
   return null;
+}
+
+// MSFS packages list every shipped file's relative path in layout.json's
+// `content` array (e.g. "scenery/world/scenery/APX0_EDDM.bgl"). Bounded to
+// the first 2000 entries / 20000 joined characters — plenty to catch an
+// ICAO-bearing filename near the top of even a huge scenery package without
+// risking a slow regex pass over a multi-megabyte file list. Best-effort:
+// missing, malformed, or unreadable layout.json just yields no extra hint.
+async function readLayoutContentHints(absolutePath) {
+  try {
+    const raw = await fs.readFile(path.join(absolutePath, 'layout.json'), 'utf-8');
+    const layout = JSON.parse(raw);
+    if (!Array.isArray(layout?.content)) return '';
+    const paths = layout.content.slice(0, 2000).map(entry => entry?.path).filter(Boolean);
+    return paths.join(' ').slice(0, 20000);
+  } catch {
+    return '';
+  }
 }
 
 function dedupe(arr) {

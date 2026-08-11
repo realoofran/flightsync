@@ -14,6 +14,7 @@ import { JSONFile } from 'lowdb/node';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { regionForIcao } from './icaoRegions.js';
+import { buildCorpusTokenCounts, recordLearnedPattern } from './learnedPatterns.js';
 
 /** @type {Low|null} */
 let db = null;
@@ -39,6 +40,10 @@ const DEFAULT_DATA = {
   syncHistory: [],   // { timestamp, plan summary, result } — last 50 kept
   flightLog: [],      // { timestamp, origin, destination, aircraftIcao, airlineIcao, callsign, distanceNm } — last 200 kept, see recordFlight()
   loadouts: [],        // { id, name, addonIds, createdAt } — named addon sets the user can re-apply without a flight plan, see createLoadout()
+  // token -> confirmed value, learned from this user's own manual
+  // confirmations and consulted as a last-resort fallback on future scans
+  // (never shared/bundled) — see learnedPatterns.js and confirmAddonMatch().
+  learnedTokens: { icao: {}, aircraftType: {}, airline: {} },
 };
 
 /**
@@ -76,6 +81,10 @@ export async function initDb(userDataPath) {
   db.data.settings = { ...DEFAULT_DATA.settings, ...db.data.settings };
   db.data.flightLog ??= [];
   db.data.loadouts ??= [];
+  db.data.learnedTokens ??= structuredClone(DEFAULT_DATA.learnedTokens);
+  db.data.learnedTokens.icao ??= {};
+  db.data.learnedTokens.aircraftType ??= {};
+  db.data.learnedTokens.airline ??= {};
   await db.write();
   return db;
 }
@@ -193,15 +202,43 @@ export async function applyAiClassifications(updates) {
 
 export async function confirmAddonMatch(id, patch) {
   const { data } = getDb();
-  if (!data.addons[id]) throw new Error(`Unknown addon id: ${id}`);
+  const existing = data.addons[id];
+  if (!existing) throw new Error(`Unknown addon id: ${id}`);
   // "OTHER" means the addon isn't tied to any route/aircraft (a utility mod,
   // sound pack, etc.) — it can never be matched by flightMatcher.js, so the
   // only sane behavior is to always keep it linked, same as a manually
   // flagged "always active" addon.
-  const alwaysActive = patch.contentType === 'OTHER' ? true : (data.addons[id].alwaysActive);
-  data.addons[id] = { ...data.addons[id], ...patch, alwaysActive, confirmed: true };
+  const alwaysActive = patch.contentType === 'OTHER' ? true : existing.alwaysActive;
+  const updated = { ...existing, ...patch, alwaysActive, confirmed: true };
+  data.addons[id] = updated;
+  learnFromConfirmation(data, existing, updated);
   await getDb().write();
-  return data.addons[id];
+  return updated;
+}
+
+/**
+ * Feeds a manual confirmation back into learnedTokens whenever it resolves
+ * something the heuristic scanner either missed entirely or got wrong —
+ * i.e. genuinely new information, not just the user accepting an
+ * already-correct pre-filled guess unchanged. See learnedPatterns.js for
+ * why this is deliberately conservative about what actually gets learned.
+ */
+function learnFromConfirmation(data, existing, updated) {
+  const text = `${existing.folderName ?? ''} ${existing.title ?? ''}`;
+  const corpus = buildCorpusTokenCounts(Object.values(data.addons));
+
+  if (updated.contentType === 'SCENERY' && updated.matchedIcao && updated.matchedIcao !== existing.matchedIcao) {
+    recordLearnedPattern(data.learnedTokens.icao, text, updated.matchedIcao, corpus);
+  }
+  if (
+    (updated.contentType === 'AIRCRAFT' || updated.contentType === 'LIVERY')
+    && updated.matchedAircraftType && updated.matchedAircraftType !== existing.matchedAircraftType
+  ) {
+    recordLearnedPattern(data.learnedTokens.aircraftType, text, updated.matchedAircraftType, corpus);
+  }
+  if (updated.contentType === 'LIVERY' && updated.matchedAirline && updated.matchedAirline !== existing.matchedAirline) {
+    recordLearnedPattern(data.learnedTokens.airline, text, updated.matchedAirline, corpus);
+  }
 }
 
 export async function setAlwaysActive(id, value) {

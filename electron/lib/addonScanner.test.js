@@ -124,6 +124,97 @@ describe('scanLibrary — vault folder safety net', () => {
 // anywhere) used to get reported TWICE — once for the folder itself and
 // once for its one dead child — double-counting the exact same issue and
 // inflating the perceived number of problems.
+// Regression coverage for the detection-accuracy improvements aimed at
+// shrinking the manual "needs confirmation" queue: layout.json content
+// paths as an ICAO signal, manifest.creator feeding the airline/aircraft
+// matchers, and this user's own past manual corrections (learnedTokens)
+// as a last-resort fallback when the heuristic itself finds nothing.
+describe('scanLibrary — extra detection signals', () => {
+  let tmpRoot, communityPath, vaultPath;
+
+  beforeAll(async () => {
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'flightsync-scanner-signals-test-'));
+    communityPath = path.join(tmpRoot, 'Community');
+    vaultPath = path.join(tmpRoot, 'vault');
+    await fs.mkdir(communityPath, { recursive: true });
+
+    // A scenery addon whose folder name and manifest title are both too
+    // generic to match on their own, but whose layout.json lists a bgl
+    // path containing the real ICAO — should still auto-resolve.
+    const layoutAddonDir = path.join(communityPath, 'generic-airport-enhancement-x');
+    await fs.mkdir(layoutAddonDir, { recursive: true });
+    await fs.writeFile(path.join(layoutAddonDir, 'manifest.json'), JSON.stringify({
+      title: 'Airport Enhancement X', content_type: 'SCENERY',
+    }));
+    await fs.writeFile(path.join(layoutAddonDir, 'layout.json'), JSON.stringify({
+      content: [{ path: 'scenery/world/scenery/APX0_EDDS.bgl', size: 1 }],
+    }));
+
+    // A livery whose folder name has nothing an airline pattern would
+    // match, but manifest.creator names the airline.
+    const creatorAddonDir = path.join(communityPath, 'repaint-project-final-v3');
+    await fs.mkdir(creatorAddonDir, { recursive: true });
+    await fs.writeFile(path.join(creatorAddonDir, 'manifest.json'), JSON.stringify({
+      title: 'Repaint Project Final v3', content_type: 'LIVERY', creator: 'Lufthansa Virtual Repaint Team',
+    }));
+  });
+
+  afterAll(async () => {
+    await fs.rm(tmpRoot, { recursive: true, force: true });
+  });
+
+  it('resolves an ICAO found only in layout.json content paths', async () => {
+    const { addons } = await scanLibrary(communityPath, vaultPath);
+    const addon = addons.find(a => a.folderName === 'generic-airport-enhancement-x');
+    expect(addon.matchedIcao).toBe('EDDS');
+    expect(addon.confirmed).toBe(true);
+  });
+
+  it('resolves an airline found only in manifest.creator', async () => {
+    const { addons } = await scanLibrary(communityPath, vaultPath);
+    const addon = addons.find(a => a.folderName === 'repaint-project-final-v3');
+    expect(addon.matchedAirline).toBe('DLH');
+  });
+});
+
+describe('scanLibrary — learned-token fallback', () => {
+  let tmpRoot, communityPath, vaultPath;
+
+  beforeAll(async () => {
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'flightsync-scanner-learned-test-'));
+    communityPath = path.join(tmpRoot, 'Community');
+    vaultPath = path.join(tmpRoot, 'vault');
+    await fs.mkdir(communityPath, { recursive: true });
+
+    // Deliberately no aircraft-type-shaped token (e.g. "a320") anywhere —
+    // isolates the airline-learning fallback from deriveConfirmed's
+    // separate aircraft-type requirement for LIVERY (matchedAirline itself
+    // isn't required for a livery to count as "confirmed").
+    const addonDir = path.join(communityPath, 'somestudio-mysteryairline-v2');
+    await fs.mkdir(addonDir, { recursive: true });
+    await fs.writeFile(path.join(addonDir, 'manifest.json'), JSON.stringify({
+      title: 'MysteryAirline Repaint', content_type: 'LIVERY',
+    }));
+  });
+
+  afterAll(async () => {
+    await fs.rm(tmpRoot, { recursive: true, force: true });
+  });
+
+  it('leaves the airline unresolved with no learned tokens', async () => {
+    const { addons } = await scanLibrary(communityPath, vaultPath);
+    expect(addons[0].matchedAirline).toBeNull();
+    expect(addons[0].matchedAircraftType).toBeNull();
+    expect(addons[0].confirmed).toBe(false);
+  });
+
+  it('resolves the airline via a previously-learned token when the heuristic finds nothing', async () => {
+    const learnedTokens = { icao: {}, aircraftType: {}, airline: { mysteryairline: 'XYZ' } };
+    const { addons } = await scanLibrary(communityPath, vaultPath, learnedTokens);
+    expect(addons[0].matchedAirline).toBe('XYZ');
+  });
+});
+
 describe('scanLibrary — no-manifest warning de-duplication', () => {
   let tmpRoot, communityPath, vaultPath;
 
