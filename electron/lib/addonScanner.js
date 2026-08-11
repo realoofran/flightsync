@@ -428,6 +428,14 @@ export function deriveConfirmed(contentType, matchedIcao, matchedAircraftType) {
 // somewhere in the folder name, e.g. "A21N", "B738" — checking for that
 // directly, not just the spelled-out name, is what catches most of them
 // without needing manual confirmation).
+// A hyphen or underscore separates almost every multi-word folder/title in
+// this app's real-world addon names ("british-airways-a320",
+// "cathay_pacific_777") — a bare \s (whitespace-only) gap between two
+// words in a regex never matches either. Every multi-word pattern below
+// uses this class instead of \s so hyphen/underscore/space are all treated
+// as the same "word gap".
+const SEP = '[-_\\s]';
+
 const AIRCRAFT_TYPE_PATTERNS = [
   ['A21N', /\ba32[01]neo\b|\ba21n\b/i],
   ['A20N', /\ba320neo\b|\ba20n\b/i],
@@ -438,7 +446,7 @@ const AIRCRAFT_TYPE_PATTERNS = [
   ['A332', /\ba330-?200\b|\ba332\b/i],
   ['A359', /\ba350-?900\b|\ba359\b/i],
   ['A388', /\ba380\b|\ba388\b/i],
-  ['B38M', /\b737\s?max\s?8\b|\bb38m\b/i],
+  ['B38M', new RegExp(`\\b737${SEP}?max${SEP}?8\\b|\\bb38m\\b`, 'i')],
   ['B738', /\b738\b|\b737-?800\b/i],
   ['B739', /\b739\b|\b737-?900\b/i],
   ['B744', /\b747-?400\b|\bb744\b/i],
@@ -452,14 +460,41 @@ const AIRCRAFT_TYPE_PATTERNS = [
   ['E190', /\be-?190\b|\be190\b/i],
   ['E175', /\be-?175\b|\be175\b/i],
   ['DR40', /\bdr[- ]?400\b/i],
-  ['C172', /\bc172\b|\bcessna\s?172\b/i],
-  ['PA28', /\bpa-?28\b|\bpiper\s?(archer|cherokee)\b/i],
-  ['TBM9', /\btbm\s?9(00|30)\b/i],
+  ['C172', new RegExp(`\\bc172\\b|\\bcessna${SEP}?172\\b`, 'i')],
+  ['PA28', new RegExp(`\\bpa-?28\\b|\\bpiper${SEP}?(archer|cherokee)\\b`, 'i')],
+  ['TBM9', /\btbm[-_ ]?9(00|30)\b/i],
+  // Batch 2 — widened to cover more of the real-world MSFS payware/freeware
+  // and default-aircraft catalog beyond the original narrowbody-heavy seed
+  // list, still every entry a real, standard ICAO type designator.
+  ['A318', /\ba318\b/i],
+  ['A333', /\ba330-?300\b|\ba333\b/i],
+  ['B748', /\b747-?8\b|\bb748\b/i],
+  ['B78X', /\b787-?10\b|\bb78x\b/i],
+  ['CRJ7', /\bcrj-?700\b|\bcrj7\b/i],
+  ['CRJ2', /\bcrj-?200\b|\bcrj2\b/i],
+  ['E170', /\be-?170\b/i],
+  ['E145', /\be-?145\b/i],
+  ['AT76', new RegExp(`\\batr${SEP}?-?72-?600\\b|\\bat76\\b`, 'i')],
+  ['AT72', new RegExp(`\\batr${SEP}?-?72\\b|\\bat72\\b`, 'i')],
+  ['DH8D', new RegExp(`\\bdash${SEP}?8\\b|\\bq400\\b|\\bdh8d\\b`, 'i')],
+  ['B350', new RegExp(`\\bking${SEP}?air${SEP}?350\\b|\\bb350i?\\b`, 'i')],
+  ['BE20', new RegExp(`\\bking${SEP}?air${SEP}?200\\b|\\bbe20\\b`, 'i')],
+  ['C208', /\bcaravan\b|\bc208(b)?\b/i],
+  ['C152', new RegExp(`\\bc152\\b|\\bcessna${SEP}?152\\b`, 'i')],
+  ['C182', new RegExp(`\\bc182\\b|\\bcessna${SEP}?182\\b`, 'i')],
+  ['SR22', new RegExp(`\\bsr22\\b|\\bcirrus${SEP}?sr-?22\\b`, 'i')],
+  ['SR20', new RegExp(`\\bsr20\\b|\\bcirrus${SEP}?sr-?20\\b`, 'i')],
+  ['DA62', new RegExp(`\\bda[-_ ]?62\\b|\\bdiamond${SEP}?da62\\b`, 'i')],
+  ['DA42', new RegExp(`\\bda[-_ ]?42\\b|\\bdiamond${SEP}?da42\\b`, 'i')],
+  ['DA40', new RegExp(`\\bda[-_ ]?40\\b|\\bdiamond${SEP}?da40\\b`, 'i')],
+  ['PC12', new RegExp(`\\bpc-?12\\b|\\bpilatus${SEP}?pc-?12\\b`, 'i')],
+  ['TBM8', /\btbm[-_ ]?(700|850)\b/i],
 ];
 
-function guessAircraftType(text) {
+export function guessAircraftType(text) {
+  const normalized = normalizeUnderscores(text);
   for (const [code, pattern] of AIRCRAFT_TYPE_PATTERNS) {
-    if (pattern.test(text)) return code;
+    if (pattern.test(normalized)) return code;
   }
   return null;
 }
@@ -467,14 +502,14 @@ function guessAircraftType(text) {
 // Airline ICAO codes — extended list covering the majors most liveries in
 // the wild are actually for, beyond the original TRvACC-relevant seed set.
 const AIRLINE_PATTERNS = [
-  ['THY', /\bturkish\s*airlines?\b|\bthy\b/i],
+  ['THY', new RegExp(`\\bturkish${SEP}*airlines?\\b|\\bthy\\b`, 'i')],
   ['PGT', /\bpegasus\b/i],
   ['DLH', /\blufthansa\b|\bdlh\b/i],
   ['CFG', /\bcondor\b/i],
   ['UAE', /\bemirates\b/i],
-  ['QTR', /\bqatar\s*airways?\b/i],
-  ['BAW', /\bbritish\s*airways?\b|\bbaw\b/i],
-  ['AFR', /\bair\s*france\b/i],
+  ['QTR', new RegExp(`\\bqatar${SEP}*airways?\\b`, 'i')],
+  ['BAW', new RegExp(`\\bbritish${SEP}*airways?\\b|\\bbaw\\b`, 'i')],
+  ['AFR', new RegExp(`\\bair${SEP}*france\\b`, 'i')],
   ['UAL', /\bunited\b/i],
   ['DAL', /\bdelta\b/i],
   ['RYR', /\bryanair\b/i],
@@ -482,32 +517,89 @@ const AIRLINE_PATTERNS = [
   ['KLM', /\bklm\b/i],
   ['IBE', /\biberia\b/i],
   ['SWR', /\bswiss\b/i],
-  ['AUA', /\baustrian\s*airlines?\b/i],
-  ['WZZ', /\bwizz\s?air\b/i],
+  ['AUA', new RegExp(`\\baustrian${SEP}*airlines?\\b`, 'i')],
+  ['WZZ', new RegExp(`\\bwizz${SEP}?air\\b`, 'i')],
   ['VLG', /\bvueling\b/i],
   ['NAX', /\bnorwegian\b/i],
   ['SAS', /\bscandinavian\b|\bsas\b/i],
   ['FIN', /\bfinnair\b/i],
   ['AFL', /\baeroflot\b/i],
-  ['AAL', /\bamerican\s*airlines?\b|\baal\b/i],
+  ['AAL', new RegExp(`\\bamerican${SEP}*airlines?\\b|\\baal\\b`, 'i')],
   ['SWA', /\bsouthwest\b/i],
   ['JBU', /\bjetblue\b/i],
-  ['ASA', /\balaska\s*airlines?\b/i],
-  ['ACA', /\bair\s*canada\b/i],
-  ['CPA', /\bcathay\s*pacific\b/i],
-  ['ANA', /\ball\s*nippon\b|\bana\b/i],
-  ['JAL', /\bjapan\s*airlines?\b|\bjal\b/i],
-  ['SIA', /\bsingapore\s*airlines?\b/i],
+  ['ASA', new RegExp(`\\balaska${SEP}*airlines?\\b`, 'i')],
+  ['ACA', new RegExp(`\\bair${SEP}*canada\\b`, 'i')],
+  ['CPA', new RegExp(`\\bcathay${SEP}*pacific\\b`, 'i')],
+  ['ANA', new RegExp(`\\ball${SEP}*nippon\\b|\\bana\\b`, 'i')],
+  ['JAL', new RegExp(`\\bjapan${SEP}*airlines?\\b|\\bjal\\b`, 'i')],
+  ['SIA', new RegExp(`\\bsingapore${SEP}*airlines?\\b`, 'i')],
   ['QFA', /\bqantas\b/i],
   ['ETD', /\betihad\b/i],
   ['SVA', /\bsaudia\b/i],
+  // Batch 2 — every entry below is a real, standard ICAO airline
+  // designator, spelled-out-name patterns only (no bare 3-letter code
+  // alternative for ones whose code doubles as a common English word, e.g.
+  // LOT/TAP, to avoid a false match on completely unrelated addon names).
+  ['LOT', new RegExp(`\\bpolish${SEP}*airlines?\\b|\\blot${SEP}*polish\\b`, 'i')],
+  ['TAP', new RegExp(`\\btap${SEP}*(air${SEP}*)?portugal\\b`, 'i')],
+  ['ICE', /\bicelandair\b/i],
+  ['AEE', /\baegean\b/i],
+  ['CTN', new RegExp(`\\bcroatia${SEP}*airlines?\\b`, 'i')],
+  ['TRA', /\btransavia\b/i],
+  ['BTI', new RegExp(`\\bair${SEP}*baltic\\b`, 'i')],
+  ['RAM', new RegExp(`\\broyal${SEP}*air${SEP}*maroc\\b`, 'i')],
+  ['SAA', new RegExp(`\\bsouth${SEP}*african${SEP}*airways?\\b`, 'i')],
+  ['KQA', new RegExp(`\\bkenya${SEP}*airways?\\b`, 'i')],
+  ['ETH', /\bethiopian\b/i],
+  ['ELY', new RegExp(`\\bel${SEP}*al\\b`, 'i')],
+  ['VIR', new RegExp(`\\bvirgin${SEP}*atlantic\\b`, 'i')],
+  ['VOZ', new RegExp(`\\bvirgin${SEP}*australia\\b`, 'i')],
+  ['LAN', /\blatam\b/i],
+  ['AVA', /\bavianca\b/i],
+  ['CMP', new RegExp(`\\bcopa${SEP}*airlines?\\b`, 'i')],
+  ['AMX', /\baeromexico\b/i],
+  ['WJA', /\bwestjet\b/i],
+  ['HAL', new RegExp(`\\bhawaiian${SEP}*airlines?\\b`, 'i')],
+  ['FFT', new RegExp(`\\bfrontier${SEP}*airlines?\\b`, 'i')],
+  ['NKS', new RegExp(`\\bspirit${SEP}*airlines?\\b`, 'i')],
+  ['AAY', /\ballegiant\b/i],
+  ['SCX', new RegExp(`\\bsun${SEP}*country\\b`, 'i')],
+  ['VOI', /\bvolaris\b/i],
+  ['HVN', new RegExp(`\\bvietnam${SEP}*airlines?\\b`, 'i')],
+  ['THA', new RegExp(`\\bthai${SEP}*airways?\\b`, 'i')],
+  ['CSN', new RegExp(`\\bchina${SEP}*southern\\b`, 'i')],
+  ['CES', new RegExp(`\\bchina${SEP}*eastern\\b`, 'i')],
+  ['CCA', new RegExp(`\\bair${SEP}*china\\b`, 'i')],
+  ['CHH', new RegExp(`\\bhainan${SEP}*airlines?\\b`, 'i')],
+  ['KAL', new RegExp(`\\bkorean${SEP}*air\\b`, 'i')],
+  ['AAR', /\basiana\b/i],
+  ['EVA', new RegExp(`\\beva${SEP}*air\\b`, 'i')],
+  ['CAL', new RegExp(`\\bchina${SEP}*airlines\\b`, 'i')],
+  ['PAL', new RegExp(`\\bphilippine${SEP}*airlines?\\b`, 'i')],
+  ['GIA', /\bgaruda\b/i],
+  ['AXM', /\bairasia\b/i],
+  ['MAS', new RegExp(`\\bmalaysia${SEP}*airlines?\\b`, 'i')],
+  ['AIC', new RegExp(`\\bair${SEP}*india\\b`, 'i')],
+  ['IGO', /\bindigo\b/i],
 ];
 
-function guessAirlineCode(text) {
+export function guessAirlineCode(text) {
+  const normalized = normalizeUnderscores(text);
   for (const [code, pattern] of AIRLINE_PATTERNS) {
-    if (pattern.test(text)) return code;
+    if (pattern.test(normalized)) return code;
   }
   return null;
+}
+
+// JS regex \b treats "_" as a word character, so a \b immediately before or
+// after an underscore never actually finds a boundary there — an
+// underscore-separated folder name like "c172_g1000" would silently fail
+// to match even a bare /\bc172\b/ pattern (icaoDatabase.js's
+// extractIcaoCodes has the identical fix for the same reason). Normalizing
+// underscores to spaces once, here, fixes every pattern in both lists
+// above uniformly instead of rewriting every individual \b.
+function normalizeUnderscores(text) {
+  return text.replace(/_/g, ' ');
 }
 
 // MSFS packages list every shipped file's relative path in layout.json's

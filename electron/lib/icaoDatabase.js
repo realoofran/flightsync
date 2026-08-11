@@ -53,6 +53,107 @@ export const ICAO_BY_NAME = {
   'singapore changi': 'WSSS',
   'tokyo haneda': 'RJTT',
   'tokyo narita': 'RJAA',
+
+  // Batch 2 — secondary UK/EU hubs, common addon subjects beyond the
+  // original majors-only seed.
+  'manchester': 'EGCC',
+  'bristol': 'EGGD',
+  'edinburgh': 'EGPH',
+  'glasgow': 'EGPF',
+  'belfast international': 'EGAA',
+  'luton': 'EGGW',
+  'stansted': 'EGSS',
+  'milan malpensa': 'LIMC',
+  'milan linate': 'LIML',
+  'rome ciampino': 'LIRA',
+  'naples': 'LIRN',
+  'venice': 'LIPZ',
+  'lisbon': 'LPPT',
+  'porto': 'LPPR',
+  'copenhagen': 'EKCH',
+  'oslo gardermoen': 'ENGM',
+  'stockholm arlanda': 'ESSA',
+  'helsinki': 'EFHK',
+  'warsaw chopin': 'EPWA',
+  'prague': 'LKPR',
+  'budapest': 'LHBP',
+  'athens': 'LGAV',
+  'brussels': 'EBBR',
+
+  // Major US secondary hubs
+  'boston logan': 'KBOS',
+  'washington dulles': 'KIAD',
+  'washington national': 'KDCA',
+  'reagan national': 'KDCA',
+  'atlanta': 'KATL',
+  'dallas fort worth': 'KDFW',
+  'denver': 'KDEN',
+  'seattle tacoma': 'KSEA',
+  'las vegas': 'KLAS',
+  'phoenix sky harbor': 'KPHX',
+  'houston intercontinental': 'KIAH',
+  'orlando': 'KMCO',
+  'detroit': 'KDTW',
+  'minneapolis': 'KMSP',
+  'philadelphia': 'KPHL',
+  'charlotte': 'KCLT',
+  'salt lake city': 'KSLC',
+  'honolulu': 'PHNL',
+
+  // Canada
+  'toronto pearson': 'CYYZ',
+  'vancouver': 'CYVR',
+  'montreal trudeau': 'CYUL',
+  'calgary': 'CYYC',
+
+  // Asia
+  'hong kong': 'VHHH',
+  'seoul incheon': 'RKSI',
+  'beijing capital': 'ZBAA',
+  'shanghai pudong': 'ZSPD',
+  'bangkok suvarnabhumi': 'VTBS',
+  'kuala lumpur': 'WMKK',
+  'manila ninoy aquino': 'RPLL',
+  'jakarta soekarno hatta': 'WIII',
+  'delhi': 'VIDP',
+  'mumbai': 'VABB',
+  'taipei taoyuan': 'RCTP',
+
+  // Middle East
+  'abu dhabi': 'OMAA',
+  'riyadh king khalid': 'OERK',
+  'jeddah king abdulaziz': 'OEJN',
+  'kuwait': 'OKBK',
+  'bahrain': 'OBBI',
+  'muscat': 'OOMS',
+  'amman queen alia': 'OJAI',
+  'beirut': 'OLBA',
+  'tehran imam khomeini': 'OIIE',
+
+  // Africa
+  'johannesburg': 'FAOR',
+  'cape town': 'FACT',
+  'cairo': 'HECA',
+  'nairobi jomo kenyatta': 'HKJK',
+  'lagos murtala muhammed': 'DNMM',
+  'casablanca mohammed v': 'GMMN',
+  'addis ababa bole': 'HAAB',
+
+  // Oceania
+  'sydney': 'YSSY',
+  'melbourne': 'YMML',
+  'brisbane': 'YBBN',
+  'perth': 'YPPH',
+  'auckland': 'NZAA',
+  'christchurch': 'NZCH',
+
+  // South America
+  'sao paulo guarulhos': 'SBGR',
+  'rio de janeiro galeao': 'SBGL',
+  'buenos aires ezeiza': 'SAEZ',
+  'santiago': 'SCEL',
+  'bogota': 'SKBO',
+  'lima jorge chavez': 'SPJC',
 };
 
 /** Matches a bare 4-letter ICAO code as a whole word, e.g. "EDDM" in "FlyByWire-EDDM-v2". */

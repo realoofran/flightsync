@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { scanLibrary } from './addonScanner.js';
+import { scanLibrary, guessAircraftType, guessAirlineCode } from './addonScanner.js';
 
 // Regression test built directly from a real user's actual library layout:
 // a Community folder organized Addons-Linker style (category subfolders
@@ -14,6 +14,86 @@ import { scanLibrary } from './addonScanner.js';
 // the target's) — so every addon under a category folder was silently
 // invisible to the scanner. Confirmed against a real 100+ addon library
 // that this produced a scan result of exactly zero addons.
+
+describe('guessAircraftType', () => {
+  it('matches existing seed patterns', () => {
+    expect(guessAircraftType('fbw-a21n-community')).toBe('A21N');
+    expect(guessAircraftType('pmdg-737-800-b738')).toBe('B738');
+  });
+
+  it('matches the expanded aircraft-type patterns without colliding with a similar existing one', () => {
+    expect(guessAircraftType('a330-300-livery')).toBe('A333');
+    // A330-300 (A333) must never be confused with the already-existing
+    // A330-200 (A332) or A330-900 (A339) patterns.
+    expect(guessAircraftType('a330-200-livery')).toBe('A332');
+    expect(guessAircraftType('a330-900-livery')).toBe('A339');
+    expect(guessAircraftType('boeing-747-8-freighter')).toBe('B748');
+    expect(guessAircraftType('crj700-regional')).toBe('CRJ7');
+    expect(guessAircraftType('crj900-regional')).toBe('CRJ9');
+    expect(guessAircraftType('atr72-600-package')).toBe('AT76');
+    expect(guessAircraftType('atr72-500-package')).toBe('AT72');
+    expect(guessAircraftType('king-air-350-default')).toBe('B350');
+    expect(guessAircraftType('cessna-caravan-c208b')).toBe('C208');
+    expect(guessAircraftType('diamond-da62-default')).toBe('DA62');
+    expect(guessAircraftType('tbm-850-turboprop')).toBe('TBM8');
+    expect(guessAircraftType('tbm-900-turboprop')).toBe('TBM9');
+  });
+
+  it('matches hyphen/underscore-separated multi-word aircraft descriptions, not just space-separated', () => {
+    // Same root bug as the airline patterns below: "king-air-350" and
+    // "cessna_172" never matched a \s*-based pattern before.
+    expect(guessAircraftType('king-air-350-default')).toBe('B350');
+    expect(guessAircraftType('cessna_172_g1000')).toBe('C172');
+    expect(guessAircraftType('tbm-850-turboprop')).toBe('TBM8');
+  });
+
+  it('returns null for text matching no known aircraft type', () => {
+    expect(guessAircraftType('completely-unrelated-mod')).toBeNull();
+  });
+});
+
+describe('guessAirlineCode', () => {
+  it('matches existing seed patterns', () => {
+    expect(guessAirlineCode('thy-a321-livery')).toBe('THY');
+    expect(guessAirlineCode('lufthansa-a320-repaint')).toBe('DLH');
+  });
+
+  it('matches hyphen/underscore-separated multi-word airline names, not just space-separated', () => {
+    // Regression: every multi-word pattern (British Airways, Air France,
+    // Cathay Pacific, Singapore Airlines, ...) previously used a bare \s*
+    // gap between the two words, which only matches actual whitespace — a
+    // real folder name almost always separates words with a hyphen or
+    // underscore instead ("british-airways-a320", "cathay_pacific_777"),
+    // so these patterns silently never matched in the single most common
+    // real-world naming shape.
+    expect(guessAirlineCode('british-airways-a320-livery')).toBe('BAW');
+    expect(guessAirlineCode('air-france-a350')).toBe('AFR');
+    expect(guessAirlineCode('cathay_pacific_777_livery')).toBe('CPA');
+    expect(guessAirlineCode('singapore-airlines-a380')).toBe('SIA');
+    expect(guessAirlineCode('american-airlines-b738')).toBe('AAL');
+  });
+
+  it('matches the expanded airline patterns, including guarded generic-word airlines', () => {
+    expect(guessAirlineCode('lot-polish-airlines-livery')).toBe('LOT');
+    expect(guessAirlineCode('tap-air-portugal-repaint')).toBe('TAP');
+    expect(guessAirlineCode('icelandair-787-livery')).toBe('ICE');
+    expect(guessAirlineCode('vietnam-airlines-a350')).toBe('HVN');
+    expect(guessAirlineCode('korean-air-747-livery')).toBe('KAL');
+    expect(guessAirlineCode('garuda-indonesia-livery')).toBe('GIA');
+    expect(guessAirlineCode('indigo-a320-livery')).toBe('IGO');
+  });
+
+  it('does not false-positive on the bare generic words "lot" or "tap" alone', () => {
+    // Regression guard: LOT/TAP are real airline names but also common
+    // English words — must never match without the qualifying airline name.
+    expect(guessAirlineCode('a-lot-of-scenery-objects')).toBeNull();
+    expect(guessAirlineCode('tap-to-configure-addon')).toBeNull();
+  });
+
+  it('returns null for text matching no known airline', () => {
+    expect(guessAirlineCode('completely-unrelated-mod')).toBeNull();
+  });
+});
 
 let tmpRoot;
 let communityPath;

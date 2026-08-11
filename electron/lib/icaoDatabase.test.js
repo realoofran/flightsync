@@ -18,6 +18,15 @@ describe('extractIcaoCodes', () => {
     expect(extractIcaoCodes('Franz Josef Strauss Enhanced')).toContain('EDDM');
   });
 
+  it('resolves several of the expanded batch-2 airport names', () => {
+    expect(extractIcaoCodes('someaddon-manchester-enhanced')).toContain('EGCC');
+    expect(extractIcaoCodes('someaddon-toronto-pearson-x')).toContain('CYYZ');
+    expect(extractIcaoCodes('someaddon-hong-kong-x')).toContain('VHHH');
+    expect(extractIcaoCodes('someaddon-johannesburg-x')).toContain('FAOR');
+    expect(extractIcaoCodes('someaddon-sydney-x')).toContain('YSSY');
+    expect(extractIcaoCodes('someaddon-sao-paulo-guarulhos-x')).toContain('SBGR');
+  });
+
   it('returns an empty array for empty/falsy input', () => {
     expect(extractIcaoCodes('')).toEqual([]);
     expect(extractIcaoCodes(null)).toEqual([]);
