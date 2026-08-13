@@ -10,6 +10,7 @@ import ManifestList from './ManifestList.jsx';
 import RouteMap from './RouteMap.jsx';
 import OfpPanel from './OfpPanel.jsx';
 import ManualRouteForm from './ManualRouteForm.jsx';
+import CallsignFinder from './CallsignFinder.jsx';
 
 const bridge = getBridge();
 
@@ -21,6 +22,7 @@ export default function SyncView() {
     applyLoadout, saveAsLoadout,
   } = useSyncState();
 
+  const [callsignSearch, setCallsignSearch] = useState(false);
   const [loadouts, setLoadouts] = useState([]);
   const refreshLoadouts = useCallback(() => {
     bridge.library.listLoadouts().then(setLoadouts);
@@ -77,7 +79,8 @@ export default function SyncView() {
         onRefresh={onRefresh}
         onPullFromSimbrief={pullFromSimbrief}
         onPullFromVatsim={pullFromVatsim}
-        onManualEntry={!plan && !manualEntry ? () => setManualEntry(true) : null}
+        onManualEntry={!plan && !manualEntry && !callsignSearch ? () => setManualEntry(true) : null}
+        onFindByCallsign={!plan && !manualEntry && !callsignSearch ? () => setCallsignSearch(true) : null}
         addonCount={(preview?.syncPlan.toLink.length ?? 0) + (preview?.syncPlan.unchanged.length ?? 0)}
       />
 
@@ -110,6 +113,17 @@ export default function SyncView() {
         {manualEntry && !plan && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
             <ManualRouteForm onSubmit={submitManualPlan} onCancel={() => setManualEntry(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {callsignSearch && !plan && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+            <CallsignFinder
+              onSelect={(f) => { submitManualPlan(f); setCallsignSearch(false); }}
+              onCancel={() => setCallsignSearch(false)}
+            />
           </motion.div>
         )}
       </AnimatePresence>

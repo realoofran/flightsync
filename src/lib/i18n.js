@@ -291,6 +291,19 @@ const dict = {
     conflictBadge: 'CONFLICT',
     noConfirmedAddonsYet: 'No confirmed addons yet.',
 
+    // Callsign search (VATSIM)
+    findByCallsignButton: 'Find by callsign',
+    findByCallsignTitle: 'Search VATSIM by callsign, e.g. DLH4LR',
+    callsignSearchLabel: 'VATSIM callsign',
+    callsignSearchPlaceholder: 'e.g. DLH4LR',
+    callsignSearchHint: 'Searches pilots currently online on VATSIM — this only finds a flight if someone is actually flying that callsign on the network right now.',
+    searchingEllipsis: 'Searching…',
+    searchButton: 'Search',
+    callsignSearchNoMatches: 'No one is flying "{query}" on VATSIM right now.',
+    callsignAltitude: '{altitude} ft',
+    callsignGroundspeed: '{speed} kt',
+    useThisFlightButton: 'Use this flight',
+
     // Settings — Community folder
     communityFolderHintPre: 'The one, real Community folder MSFS reads from — no separate library to maintain. Typically under',
     communityFolderHintPost: '(same location for both the Microsoft Store and Steam versions).',
@@ -626,6 +639,19 @@ const dict = {
     conflictBadge: 'KONFLIKT',
     noConfirmedAddonsYet: 'Noch keine bestätigten Addons.',
 
+    // Callsign-Suche (VATSIM)
+    findByCallsignButton: 'Nach Rufzeichen suchen',
+    findByCallsignTitle: 'VATSIM nach Rufzeichen durchsuchen, z. B. DLH4LR',
+    callsignSearchLabel: 'VATSIM-Rufzeichen',
+    callsignSearchPlaceholder: 'z. B. DLH4LR',
+    callsignSearchHint: 'Durchsucht Piloten, die aktuell auf VATSIM online sind — ein Flug wird nur gefunden, wenn gerade jemand mit diesem Rufzeichen im Netzwerk fliegt.',
+    searchingEllipsis: 'Suche läuft…',
+    searchButton: 'Suchen',
+    callsignSearchNoMatches: 'Niemand fliegt gerade mit „{query}" auf VATSIM.',
+    callsignAltitude: '{altitude} ft',
+    callsignGroundspeed: '{speed} kt',
+    useThisFlightButton: 'Diesen Flug verwenden',
+
     communityFolderHintPre: 'Der eine, echte Community-Ordner, aus dem MSFS liest — keine separate Bibliothek zu pflegen. Normalerweise unter',
     communityFolderHintPost: '(gleicher Ort für die Microsoft-Store- und die Steam-Version).',
     communityNotSet: 'Nicht festgelegt',
@@ -951,6 +977,19 @@ const dict = {
     removeButton: 'Kaldır',
     conflictBadge: 'ÇAKIŞMA',
     noConfirmedAddonsYet: 'Henüz onaylanmış eklenti yok.',
+
+    // Çağrı işareti araması (VATSIM)
+    findByCallsignButton: 'Çağrı işaretiyle bul',
+    findByCallsignTitle: "VATSIM'de çağrı işaretine göre ara, örn. DLH4LR",
+    callsignSearchLabel: 'VATSIM çağrı işareti',
+    callsignSearchPlaceholder: 'örn. DLH4LR',
+    callsignSearchHint: "Şu anda VATSIM'de çevrimiçi olan pilotları arar — bir uçuş yalnızca şu anda ağda o çağrı işaretiyle uçan biri varsa bulunur.",
+    searchingEllipsis: 'Aranıyor…',
+    searchButton: 'Ara',
+    callsignSearchNoMatches: 'Şu anda VATSIM\'de "{query}" ile uçan kimse yok.',
+    callsignAltitude: '{altitude} ft',
+    callsignGroundspeed: '{speed} kt',
+    useThisFlightButton: 'Bu uçuşu kullan',
 
     communityFolderHintPre: "MSFS'in okuduğu tek gerçek Community klasörü — ayrı bir kütüphane yönetmeye gerek yok. Genellikle şu konumda:",
     communityFolderHintPost: '(Microsoft Store ve Steam sürümleri için aynı konum).',

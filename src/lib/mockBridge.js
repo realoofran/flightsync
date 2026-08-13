@@ -224,6 +224,26 @@ export const mockBridge = {
       for (const icao of icaos ?? []) result[icao] = sample[icao] ?? [];
       return result;
     },
+    findByCallsign: async (query) => {
+      const q = (query ?? '').trim().toUpperCase();
+      if (!q) return [];
+      const sample = [
+        {
+          origin: 'EDDF', destination: 'KJFK', alternates: ['KEWR'], aircraftIcao: 'A21N', airlineIcao: 'DLH',
+          callsign: 'DLH4LR', fetchedAt: new Date().toISOString(), source: 'vatsim',
+          originCoord: null, destinationCoord: null, routePoints: [], ofp: null,
+          pilotName: 'Max Mustermann', pilotCid: 1234567, altitude: 37000, groundspeed: 452,
+        },
+        {
+          origin: 'LTFM', destination: 'EDDM', alternates: [], aircraftIcao: 'A320', airlineIcao: 'THY',
+          callsign: 'THY1598', fetchedAt: new Date().toISOString(), source: 'vatsim',
+          originCoord: null, destinationCoord: null, routePoints: [], ofp: null,
+          pilotName: 'Ayşe Yılmaz', pilotCid: 7654321, altitude: 34000, groundspeed: 421,
+        },
+      ];
+      const exact = sample.filter(f => f.callsign === q);
+      return exact.length > 0 ? exact : sample.filter(f => f.callsign.startsWith(q));
+    },
   },
   updater: {
     check: async () => ({ state: 'unavailable', message: 'Updates only run in the packaged app, not in dev mode.' }),

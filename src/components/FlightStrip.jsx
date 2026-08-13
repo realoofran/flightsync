@@ -21,7 +21,7 @@ const bridge = getBridge();
  * version of a mostly-solid-colored flag (many real flags are dominated by
  * one field color) just reads as an unexplained color wash, not a flag.
  */
-export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbrief, onPullFromVatsim, onManualEntry, addonCount = 0 }) {
+export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbrief, onPullFromVatsim, onManualEntry, onFindByCallsign, addonCount = 0 }) {
   const { t } = useAppSettings();
   const flagCountry = plan ? countryForFlight(plan) : null;
   const [sharing, setSharing] = useState(false);
@@ -64,6 +64,11 @@ export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbri
             {onPullFromVatsim && (
               <button className="btn btn--ghost" onClick={onPullFromVatsim} title={t('pullFromVatsimTitle')}>
                 {t('pullFromVatsimButton')}
+              </button>
+            )}
+            {onFindByCallsign && (
+              <button className="btn btn--ghost" onClick={onFindByCallsign} title={t('findByCallsignTitle')}>
+                {t('findByCallsignButton')}
               </button>
             )}
             {onManualEntry && (
@@ -114,8 +119,8 @@ export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbri
                 <motion.button
                   className="strip__refresh"
                   onClick={onRefresh}
-                  title={plan.source === 'vatsim' ? t('refetchVatsim') : t('refetchSimbrief')}
-                  aria-label={plan.source === 'vatsim' ? t('refetchVatsim') : t('refetchSimbrief')}
+                  title={plan.source?.startsWith('vatsim') ? t('refetchVatsim') : t('refetchSimbrief')}
+                  aria-label={plan.source?.startsWith('vatsim') ? t('refetchVatsim') : t('refetchSimbrief')}
                   whileTap={{ scale: 0.9 }}
                 >
                   <RotateCw size={18} />
@@ -135,7 +140,7 @@ export default function FlightStrip({ plan, loading, onRefresh, onPullFromSimbri
           </div>
 
           <div className="strip__meta">
-            {plan.source === 'vatsim' && (
+            {plan.source?.startsWith('vatsim') && (
               <span className="tag tag--live"><span className="tag__live-dot" />{t('liveOnVatsim')}</span>
             )}
             {plan.airlineIcao && <span className="tag tag--amber">{plan.airlineIcao}</span>}

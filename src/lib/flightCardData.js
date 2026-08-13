@@ -28,7 +28,7 @@ export function buildFlightCardData(plan, addonCount = 0) {
     airlineIcao: plan?.airlineIcao || null,
     alternates: plan?.alternates ?? [],
     distanceLabel: distanceNm ? `${Math.round(distanceNm).toLocaleString()} NM` : null,
-    liveVatsim: plan?.source === 'vatsim',
+    liveVatsim: plan?.source?.startsWith('vatsim') ?? false,
     addonCount,
     generatedAt: new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }),
   };

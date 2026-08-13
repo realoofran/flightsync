@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld('flightsync', {
   vatsim: {
     getAtcStatus: (icaos) => ipcRenderer.invoke('vatsim:getAtcStatus', { icaos }),
     fetchMyFlightPlan: () => ipcRenderer.invoke('vatsim:fetchMyFlightPlan'),
+    findByCallsign: (query) => ipcRenderer.invoke('vatsim:findByCallsign', { query }),
   },
   updater: {
     check: () => ipcRenderer.invoke('updater:check'),

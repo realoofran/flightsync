@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchControllersForAirport, findPilotFlightPlan } from './vatsimClient.js';
+import { matchControllersForAirport, findPilotFlightPlan, findFlightsByCallsign } from './vatsimClient.js';
 
 // Real callsign conventions seen on the live VATSIM feed at time of
 // writing: US airports use the 3-letter FAA-style local identifier
@@ -140,5 +140,69 @@ describe('findPilotFlightPlan', () => {
     const plan = findPilotFlightPlan(9999999, pilots);
     expect(plan.airlineIcao).toBeNull();
     expect(plan.alternates).toEqual([]);
+  });
+});
+
+describe('findFlightsByCallsign', () => {
+  it('finds an exact callsign match, case-insensitively, with pilot/position extras attached', () => {
+    const found = findFlightsByCallsign('thy1598', pilots);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({
+      origin: 'LTFM',
+      destination: 'EDDM',
+      aircraftIcao: 'A21N',
+      airlineIcao: 'THY',
+      callsign: 'THY1598',
+      source: 'vatsim-callsign',
+      pilotName: 'Test Pilot',
+      pilotCid: 1234567,
+    });
+  });
+
+  it('falls back to a prefix match when no exact callsign is online', () => {
+    // "THY159" isn't a full callsign anyone is using, but it's a prefix of
+    // "THY1598" — surfacing it beats a dead end, same spirit as searching
+    // "DLH" to see every Lufthansa flight currently online.
+    const found = findFlightsByCallsign('THY159', pilots);
+    expect(found.map((f) => f.callsign)).toEqual(['THY1598']);
+  });
+
+  it('prefers an exact match over prefix matches when both exist', () => {
+    const withPrefixCollision = [
+      ...pilots,
+      { cid: 5555555, name: 'Other Pilot', callsign: 'THY15980', flight_plan: { departure: 'LTFM', arrival: 'LTBA', aircraft_short: 'A320' } },
+    ];
+    const found = findFlightsByCallsign('THY1598', withPrefixCollision);
+    expect(found.map((f) => f.callsign)).toEqual(['THY1598']);
+  });
+
+  it('excludes pilots online with no filed flight plan', () => {
+    const found = findFlightsByCallsign('N123AB', pilots);
+    expect(found).toEqual([]);
+  });
+
+  it('reads live altitude/groundspeed when present, otherwise leaves them null', () => {
+    const airborne = [
+      { cid: 1111111, name: 'Airborne Pilot', callsign: 'DLH4LR', altitude: 37000, groundspeed: 450,
+        flight_plan: { departure: 'EDDF', arrival: 'KJFK', aircraft_short: 'A21N' } },
+    ];
+    const found = findFlightsByCallsign('DLH4LR', airborne);
+    expect(found[0].altitude).toBe(37000);
+    expect(found[0].groundspeed).toBe(450);
+    expect(findFlightsByCallsign('THY1598', pilots)[0].altitude).toBeNull();
+  });
+
+  it('caps results at 10 for a broad prefix search', () => {
+    const manyPilots = Array.from({ length: 15 }, (_, i) => ({
+      cid: i, name: `Pilot ${i}`, callsign: `DLH${i}`,
+      flight_plan: { departure: 'EDDF', arrival: 'KJFK', aircraft_short: 'A21N' },
+    }));
+    expect(findFlightsByCallsign('DLH', manyPilots)).toHaveLength(10);
+  });
+
+  it('returns an empty array for empty/missing input instead of throwing', () => {
+    expect(findFlightsByCallsign('', pilots)).toEqual([]);
+    expect(findFlightsByCallsign(null, pilots)).toEqual([]);
+    expect(findFlightsByCallsign('THY1598', null)).toEqual([]);
   });
 });

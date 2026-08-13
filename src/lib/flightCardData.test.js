@@ -26,6 +26,10 @@ describe('buildFlightCardData', () => {
 
   it('flags liveVatsim only when the plan actually came from VATSIM', () => {
     expect(buildFlightCardData({ source: 'vatsim' }).liveVatsim).toBe(true);
+    // A callsign-search result is still genuinely live VATSIM data, just a
+    // distinct source string so it doesn't wire into the "re-pull my own
+    // CID" refresh handler — see vatsimClient.js's findFlightsByCallsign.
+    expect(buildFlightCardData({ source: 'vatsim-callsign' }).liveVatsim).toBe(true);
     expect(buildFlightCardData({ source: 'simbrief' }).liveVatsim).toBe(false);
     expect(buildFlightCardData({ source: 'manual' }).liveVatsim).toBe(false);
   });

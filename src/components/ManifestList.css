@@ -81,7 +81,7 @@
   border-radius: 50%;
   display: inline-block;
 }
-.led--green { background: var(--green); box-shadow: 0 0 6px var(--green); }
-.led--red { background: var(--red); box-shadow: 0 0 6px var(--red); }
-.led--amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.led--green { background: var(--green); }
+.led--red { background: var(--red); }
+.led--amber { background: var(--amber); }
 .led--cyan-dim { background: var(--text-faint); }

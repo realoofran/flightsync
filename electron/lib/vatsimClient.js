@@ -87,20 +87,14 @@ export async function fetchVatsimPilotFlightPlan(cid) {
 }
 
 /**
- * Pure matching/normalizing logic, split out from fetchVatsimPilotFlightPlan
- * so it's testable without a network call.
- *
- * @param {string|number} cid
- * @param {Array} pilots  raw VATSIM `pilots[]` entries
+ * Maps one VATSIM `pilots[]` entry with a filed flight plan onto
+ * FlightSync's FlightPlan shape (see simbriefClient.js) — shared by both
+ * findPilotFlightPlan (CID lookup) and findFlightsByCallsign (callsign
+ * search) below so the two don't drift apart. Caller has already checked
+ * `pilot.flight_plan.departure`/`.arrival` exist.
  */
-export function findPilotFlightPlan(cid, pilots) {
-  if (!cid) return null;
-  const pilot = (pilots ?? []).find((p) => String(p?.cid) === String(cid).trim());
-  if (!pilot) return null;
-
+function corePlanFromPilot(pilot) {
   const fp = pilot.flight_plan;
-  if (!fp?.departure || !fp?.arrival) return null;
-
   // VATSIM callsigns follow the same airline-code + flight-number
   // convention real ICAO callsigns use (e.g. "THY1598") — extracting the
   // leading letters is the same heuristic FlightRadar24 parsing already
@@ -121,6 +115,71 @@ export function findPilotFlightPlan(cid, pilots) {
     ofp: null,
     source: 'vatsim',
   };
+}
+
+/**
+ * Pure matching/normalizing logic, split out from fetchVatsimPilotFlightPlan
+ * so it's testable without a network call.
+ *
+ * @param {string|number} cid
+ * @param {Array} pilots  raw VATSIM `pilots[]` entries
+ */
+export function findPilotFlightPlan(cid, pilots) {
+  if (!cid) return null;
+  const pilot = (pilots ?? []).find((p) => String(p?.cid) === String(cid).trim());
+  if (!pilot) return null;
+
+  const fp = pilot.flight_plan;
+  if (!fp?.departure || !fp?.arrival) return null;
+
+  return corePlanFromPilot(pilot);
+}
+
+export async function fetchVatsimFlightsByCallsign(query) {
+  const data = await fetchVatsimData();
+  return findFlightsByCallsign(query, data?.pilots ?? []);
+}
+
+/**
+ * Callsign-based search across every pilot currently online with a filed
+ * flight plan. Unlike findPilotFlightPlan (which only ever looks up YOUR
+ * OWN CID, for auto-sync), this is for browsing/picking a specific flight
+ * by callsign — e.g. "DLH4LR" — so each result carries a few extra
+ * display-only fields (pilot name, live altitude/groundspeed) on top of
+ * the core FlightPlan shape, for the search-results list to show. An
+ * exact callsign match is preferred; if none is online right now, falls
+ * back to a prefix match so searching "DLH" surfaces every Lufthansa
+ * flight currently active instead of a dead end. Capped at 10 results —
+ * this is a picker, not a full network browser.
+ *
+ * @param {string} query
+ * @param {Array} pilots  raw VATSIM `pilots[]` entries
+ * @returns {Array<import('./simbriefClient.js').FlightPlan & {pilotName: string|null, pilotCid: number|null, altitude: number|null, groundspeed: number|null}>}
+ */
+export function findFlightsByCallsign(query, pilots) {
+  const q = (query ?? '').trim().toUpperCase();
+  if (!q) return [];
+
+  const withPlans = (pilots ?? []).filter(
+    (p) => p?.callsign && p?.flight_plan?.departure && p?.flight_plan?.arrival,
+  );
+
+  const exact = withPlans.filter((p) => p.callsign.toUpperCase() === q);
+  const matches = exact.length > 0 ? exact : withPlans.filter((p) => p.callsign.toUpperCase().startsWith(q));
+
+  return matches.slice(0, 10).map((pilot) => ({
+    ...corePlanFromPilot(pilot),
+    // Distinct from plain 'vatsim' (which means "this user's own CID pull",
+    // and drives SyncView's refresh button to re-pull that same CID) — a
+    // callsign search can load someone else's flight entirely, so it must
+    // never wire up to that refresh path. Still genuinely live VATSIM data
+    // for display purposes (FlightStrip's "LIVE ON VATSIM" tag etc).
+    source: 'vatsim-callsign',
+    pilotName: pilot.name || null,
+    pilotCid: pilot.cid ?? null,
+    altitude: typeof pilot.altitude === 'number' ? pilot.altitude : null,
+    groundspeed: typeof pilot.groundspeed === 'number' ? pilot.groundspeed : null,
+  }));
 }
 
 /**

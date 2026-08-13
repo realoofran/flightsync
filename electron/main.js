@@ -17,7 +17,7 @@ import { resolveRequiredAddons, findPendingConfirmations } from './lib/flightMat
 import { classifyAddonsWithAI } from './lib/aiClassifier.js';
 import { computeAddonSizes } from './lib/diskUsage.js';
 import { isMsfsRunning } from './lib/processWatcher.js';
-import { fetchVatsimControllers, matchControllersForAirport, fetchVatsimPilotFlightPlan } from './lib/vatsimClient.js';
+import { fetchVatsimControllers, matchControllersForAirport, fetchVatsimPilotFlightPlan, fetchVatsimFlightsByCallsign } from './lib/vatsimClient.js';
 import { buildAddonCsv } from './lib/csvExport.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -682,6 +682,11 @@ ipcMain.handle('vatsim:fetchMyFlightPlan', async () => {
     );
   }
   return plan;
+});
+
+ipcMain.handle('vatsim:findByCallsign', async (_e, { query }) => {
+  if (!query || !query.trim()) throw new Error('Enter a callsign to search for.');
+  return fetchVatsimFlightsByCallsign(query);
 });
 
 ipcMain.handle('sync:undo', async () => {
