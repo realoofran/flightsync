@@ -551,6 +551,41 @@ button.status-panel__stat-row:hover { background: var(--glass-bg-hover); }
 .warning-group__header .warning-group__explain { margin: 0; }
 .warning-group__list .btn--small { padding: 3px 10px; font-family: var(--font-display); margin-left: auto; }
 
+.warning-group__list--conflicts .warning-group__conflict-item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  margin-bottom: var(--space-2);
+}
+.warning-group__conflict-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-left: 12px;
+}
+.warning-group__conflict-row .warning-group__reason { flex: 1; }
+
+.rename-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rename-control__input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border-bright);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  width: 200px;
+}
+.rename-control__error {
+  color: var(--red-text);
+  font-family: var(--font-display);
+  flex-basis: 100%;
+}
+
 /* Library confirm rows -------------------------------------------------- */
 
 .confirm-row {

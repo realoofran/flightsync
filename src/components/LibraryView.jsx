@@ -152,6 +152,14 @@ export default function LibraryView() {
     }
   }, []);
 
+  // Shared by anything that gets back a fresh {addons, warnings} pair from
+  // main.js's own rescan-after-mutate pattern (currently just renameAddon)
+  // instead of needing a whole separate scan() round-trip from here.
+  const applyLibraryUpdate = useCallback((result) => {
+    setAddons(result.addons);
+    setScanWarnings(result.warnings ?? []);
+  }, []);
+
   const loadSizes = useCallback(async () => {
     if (sizes) { setSizes(null); setSortBy(prev => (prev === 'size' ? 'default' : prev)); return; } // toggle off
     setLoadingSizes(true);
@@ -379,11 +387,16 @@ export default function LibraryView() {
           </summary>
           <div className="warning-groups">
             <p className="warning-group__explain">{t('conflictBannerExplain')}</p>
-            <ul className="warning-group__list">
+            <ul className="warning-group__list warning-group__list--conflicts">
               {conflictGroups.map(([folderName, group]) => (
-                <li key={folderName}>
+                <li key={folderName} className="warning-group__conflict-item">
                   <span className="warning-group__path">{folderName}</span>
-                  <span className="warning-group__reason"> — {group.map(a => a.categoryPath || '(root)').join(' vs. ')}</span>
+                  {group.map(addon => (
+                    <div className="warning-group__conflict-row" key={addon.id}>
+                      <span className="warning-group__reason">{addon.categoryPath || '(root)'}</span>
+                      <RenameAddonControl addon={addon} t={t} onRenamed={applyLibraryUpdate} />
+                    </div>
+                  ))}
                 </li>
               ))}
             </ul>
@@ -541,5 +554,68 @@ export default function LibraryView() {
         </>
       )}
     </motion.div>
+  );
+}
+
+/**
+ * Inline rename control for one side of a folder-name conflict — renames
+ * the addon's vault folder via bridge.library.renameAddon(), which
+ * rescans server-side and returns the refreshed {addons, warnings}, so
+ * onRenamed just needs to apply that straight to LibraryView's state
+ * (see applyLibraryUpdate above). Local to this file since it's a small,
+ * single-use control, same pattern as SyncView.jsx's SaveLoadoutControl.
+ */
+function RenameAddonControl({ addon, onRenamed, t }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(addon.folderName);
+  const [renaming, setRenaming] = useState(false);
+  const [error, setError] = useState(null);
+
+  if (!editing) {
+    return (
+      <button
+        className="btn btn--ghost btn--small"
+        onClick={() => { setValue(addon.folderName); setError(null); setEditing(true); }}
+      >
+        {t('renameButton')}
+      </button>
+    );
+  }
+
+  const submit = async () => {
+    setRenaming(true);
+    setError(null);
+    try {
+      const result = await bridge.library.renameAddon(addon.id, value);
+      onRenamed(result);
+      setEditing(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRenaming(false);
+    }
+  };
+
+  return (
+    <span className="rename-control">
+      <input
+        autoFocus
+        className="rename-control__input"
+        value={value}
+        disabled={renaming}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') submit();
+          if (e.key === 'Escape') setEditing(false);
+        }}
+      />
+      <button className="btn btn--primary btn--small" onClick={submit} disabled={renaming || !value.trim()}>
+        {renaming ? t('renamingEllipsis') : t('save')}
+      </button>
+      <button className="btn btn--ghost btn--small" onClick={() => setEditing(false)} disabled={renaming}>
+        {t('cancel')}
+      </button>
+      {error && <span className="rename-control__error">{error}</span>}
+    </span>
   );
 }

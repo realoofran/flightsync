@@ -249,6 +249,27 @@ export async function setAlwaysActive(id, value) {
   return data.addons[id];
 }
 
+/**
+ * Transplants an addon's DB record onto a new id/folderName/absolutePath
+ * after its vault folder was physically renamed (see main.js's
+ * library:renameAddon, which does the actual fs.rename via
+ * addonScanner.js's renameVaultFolder before calling this). The id changes
+ * because it's a hash of the absolute path (addonScanner.js's hashPath) —
+ * this preserves everything else (confirmed, alwaysActive, matchedIcao,
+ * ...) across that id change instead of the rename silently dropping a
+ * prior manual confirmation. Purely an in-memory/persisted state update —
+ * no filesystem access here, consistent with the rest of this module.
+ */
+export async function applyAddonRename(id, newFolderName, newAbsolutePath, newId) {
+  const { data } = getDb();
+  const existing = data.addons[id];
+  if (!existing) throw new Error(`Unknown addon id: ${id}`);
+  delete data.addons[id];
+  data.addons[newId] = { ...existing, id: newId, folderName: newFolderName, absolutePath: newAbsolutePath };
+  await getDb().write();
+  return data.addons[newId];
+}
+
 export async function recordSyncResult(summary) {
   const { data } = getDb();
   data.syncHistory.unshift({ timestamp: new Date().toISOString(), ...summary });

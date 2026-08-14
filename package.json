@@ -1,7 +1,7 @@
 {
   "name": "flightsync",
   "productName": "FlightSync",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Automatically links only the MSFS 2024 Community folder addons required for your currently planned flight.",
   "author": "Devran",
   "license": "UNLICENSED",

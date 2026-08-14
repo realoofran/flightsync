@@ -9,8 +9,8 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-import { initDb, getDb, upsertScannedAddons, confirmAddonMatch, setAlwaysActive, recordSyncResult, updateSettings, applyAiClassifications, recordFlight, createLoadout, deleteLoadout } from './lib/db.js';
-import { scanLibrary } from './lib/addonScanner.js';
+import { initDb, getDb, upsertScannedAddons, confirmAddonMatch, setAlwaysActive, recordSyncResult, updateSettings, applyAiClassifications, recordFlight, createLoadout, deleteLoadout, applyAddonRename } from './lib/db.js';
+import { scanLibrary, renameVaultFolder, hashPath } from './lib/addonScanner.js';
 import { computeSyncPlan, applySyncPlan, removeBrokenLink, invertSyncEntry } from './lib/symlinkManager.js';
 import { fetchLatestOfp } from './lib/simbriefClient.js';
 import { resolveRequiredAddons, findPendingConfirmations } from './lib/flightMatcher.js';
@@ -525,6 +525,26 @@ ipcMain.handle('library:list', () => Object.values(getDb().data.addons));
 
 ipcMain.handle('library:removeBrokenLink', async (_e, { path: targetPath }) => {
   await removeBrokenLink(targetPath);
+});
+
+// Renames a single addon's vault folder — how a folder-name conflict (two
+// addons that would collide when linked into Community, since MSFS can
+// only ever have one folder per name) gets resolved from inside the app,
+// instead of the user having to go rename it in File Explorer by hand.
+// Rescans afterward so nameConflict (and everything else scan-derived)
+// comes back correct across the whole library, not just the renamed addon.
+ipcMain.handle('library:renameAddon', async (_e, { id, newFolderName }) => {
+  const existing = getDb().data.addons[id];
+  if (!existing) throw new Error('Unknown addon.');
+
+  const newAbsolutePath = await renameVaultFolder(existing.absolutePath, newFolderName);
+  const newId = hashPath(newAbsolutePath);
+  await applyAddonRename(id, newFolderName.trim(), newAbsolutePath, newId);
+
+  const { communityPath, vaultPath } = getDb().data.settings;
+  const { addons: scanned, warnings } = await scanLibrary(communityPath, vaultPath, getDb().data.learnedTokens);
+  await upsertScannedAddons(scanned);
+  return { addons: Object.values(getDb().data.addons), warnings };
 });
 
 ipcMain.handle('library:getFolderSizes', async () => {

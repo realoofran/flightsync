@@ -1,5 +1,7 @@
 # FlightSync
 
+[![Test](https://github.com/realoofran/flightsync/actions/workflows/test.yml/badge.svg)](https://github.com/realoofran/flightsync/actions/workflows/test.yml)
+
 Automatically links only the MSFS 2024 Community-folder addons required for
 your currently planned flight. See **PLAN.md** for the full architecture,
 data model, and roadmap — read that first.

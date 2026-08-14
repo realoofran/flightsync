@@ -80,6 +80,31 @@ export const mockBridge = {
     }),
     list: async () => mockAddons,
     removeBrokenLink: async () => {},
+    renameAddon: async (id, newFolderName) => {
+      const trimmed = (newFolderName ?? '').trim();
+      if (!trimmed) throw new Error('New folder name cannot be empty.');
+      if (/[\\/:*?"<>|]/.test(trimmed)) throw new Error('Folder name can\'t contain \\ / : * ? " < > |');
+      const addon = mockAddons.find(a => a.id === id);
+      if (!addon) throw new Error('Unknown addon.');
+      const sibling = mockAddons.find(a => a.id !== id && a.folderName === trimmed && a.categoryPath === addon.categoryPath);
+      if (sibling) throw new Error(`"${trimmed}" already exists in this location.`);
+      addon.folderName = trimmed;
+      // Recompute conflicts across the whole mock library, mirroring the
+      // real markNameConflicts pass a rescan does server-side.
+      const byName = new Map();
+      for (const a of mockAddons) {
+        if (!byName.has(a.folderName)) byName.set(a.folderName, []);
+        byName.get(a.folderName).push(a);
+      }
+      for (const a of mockAddons) a.nameConflict = false;
+      const warnings = [];
+      for (const [folderName, group] of byName) {
+        if (group.length < 2) continue;
+        for (const a of group) a.nameConflict = true;
+        warnings.push({ path: folderName, code: 'name-conflict', message: `"${folderName}" in ${group.map(a => a.categoryPath || '(root)').join(' and ')}` });
+      }
+      return { addons: [...mockAddons], warnings };
+    },
     onRescanned: () => () => {},
     getFolderSizes: async () => ({
       a1: 1_800_000_000, a2: 2_100_000_000, a3: 950_000_000, a3b: 1_200_000_000,

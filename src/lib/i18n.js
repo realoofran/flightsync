@@ -294,6 +294,8 @@ const dict = {
     // Callsign search (VATSIM)
     findByCallsignButton: 'Find by callsign',
     findByCallsignTitle: 'Search VATSIM by callsign, e.g. DLH4LR',
+    renameButton: 'Rename',
+    renamingEllipsis: 'Renaming…',
     callsignSearchLabel: 'VATSIM callsign',
     callsignSearchPlaceholder: 'e.g. DLH4LR',
     callsignSearchHint: 'Searches pilots currently online on VATSIM — this only finds a flight if someone is actually flying that callsign on the network right now.',
@@ -642,6 +644,8 @@ const dict = {
     // Callsign-Suche (VATSIM)
     findByCallsignButton: 'Nach Rufzeichen suchen',
     findByCallsignTitle: 'VATSIM nach Rufzeichen durchsuchen, z. B. DLH4LR',
+    renameButton: 'Umbenennen',
+    renamingEllipsis: 'Wird umbenannt…',
     callsignSearchLabel: 'VATSIM-Rufzeichen',
     callsignSearchPlaceholder: 'z. B. DLH4LR',
     callsignSearchHint: 'Durchsucht Piloten, die aktuell auf VATSIM online sind — ein Flug wird nur gefunden, wenn gerade jemand mit diesem Rufzeichen im Netzwerk fliegt.',
@@ -981,6 +985,8 @@ const dict = {
     // Çağrı işareti araması (VATSIM)
     findByCallsignButton: 'Çağrı işaretiyle bul',
     findByCallsignTitle: "VATSIM'de çağrı işaretine göre ara, örn. DLH4LR",
+    renameButton: 'Yeniden adlandır',
+    renamingEllipsis: 'Yeniden adlandırılıyor…',
     callsignSearchLabel: 'VATSIM çağrı işareti',
     callsignSearchPlaceholder: 'örn. DLH4LR',
     callsignSearchHint: "Şu anda VATSIM'de çevrimiçi olan pilotları arar — bir uçuş yalnızca şu anda ağda o çağrı işaretiyle uçan biri varsa bulunur.",

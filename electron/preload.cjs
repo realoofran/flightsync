@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('flightsync', {
     scan: () => ipcRenderer.invoke('library:scan'),
     list: () => ipcRenderer.invoke('library:list'),
     removeBrokenLink: (path) => ipcRenderer.invoke('library:removeBrokenLink', { path }),
+    renameAddon: (id, newFolderName) => ipcRenderer.invoke('library:renameAddon', { id, newFolderName }),
     getFolderSizes: () => ipcRenderer.invoke('library:getFolderSizes'),
     exportCsv: () => ipcRenderer.invoke('library:exportCsv'),
     listLoadouts: () => ipcRenderer.invoke('library:listLoadouts'),

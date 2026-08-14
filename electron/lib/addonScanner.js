@@ -256,7 +256,34 @@ async function migrateOneFolder(realPath, vaultPath, warnings) {
       }
     }
   } else {
-    await fs.rm(realPath, { recursive: true, force: true });
+    // vaultTarget already exists even though realPath is still a genuine
+    // (non-symlink) folder sitting in Community — meaning EITHER this is a
+    // crash-interrupted migration of this exact same folder (vault copy
+    // already made, source/symlink swap never finished), OR a completely
+    // different real addon elsewhere in Community that just happens to
+    // share this leaf name, colliding with one already migrated.
+    //
+    // Confirmed as a real, serious bug: this used to just fs.rm(realPath)
+    // unconditionally, assuming the former case — for the latter case that
+    // silently deleted a user's actual addon files, then left a junction
+    // in its place pointing at a completely unrelated addon's vault copy.
+    // There's no cheap, reliable way to tell the two cases apart (content
+    // hashing a potentially huge scenery folder just to migrate it isn't
+    // reasonable), so never delete here — warn and leave the source
+    // folder alone. The user resolves it exactly like any other name
+    // conflict: rename one of the two folders, then rescan. This is a
+    // strict safety improvement even though it means a same-named
+    // collision discovered at first-migration time can't (yet) be
+    // resolved via LibraryView's in-app rename control the way an
+    // already-migrated vault-side conflict can — the conflicting folder
+    // simply isn't in the vault for that control to act on until it's
+    // been renamed by hand once, outside FlightSync.
+    warnings.push({
+      path: realPath,
+      code: 'name-conflict',
+      message: `A different addon already occupies "${folderName}" in the vault — rename this folder (or the other one) before FlightSync can manage both. Left untouched, nothing was deleted.`,
+    });
+    return;
   }
 
   await fs.symlink(vaultTarget, realPath, process.platform === 'win32' ? 'junction' : 'dir');
@@ -633,8 +660,42 @@ async function exists(p) {
   }
 }
 
-function hashPath(p) {
+export function hashPath(p) {
   return crypto.createHash('sha1').update(p).digest('hex').slice(0, 16);
+}
+
+/**
+ * Renames an addon's folder in place inside the vault — the fix for a
+ * folder-name conflict (two addons that collide because MSFS can only ever
+ * link one Community-folder entry per name; see markNameConflicts above).
+ * Only ever touches the vault copy, never the Community symlink itself —
+ * on the next scan the addon's folderName simply comes out different, and
+ * whatever previously pointed at the old Community-folder name is picked
+ * up fresh through the normal sync flow rather than being patched here.
+ *
+ * @param {string} absolutePath   the addon's current vault folder path
+ * @param {string} newFolderName desired new leaf folder name
+ * @returns {Promise<string>} the new absolute path
+ */
+export async function renameVaultFolder(absolutePath, newFolderName) {
+  const trimmed = (newFolderName ?? '').trim();
+  if (!trimmed) throw new Error('New folder name cannot be empty.');
+  if (/[\\/:*?"<>|]/.test(trimmed)) {
+    throw new Error('Folder name can\'t contain \\ / : * ? " < > |');
+  }
+
+  const parentDir = path.dirname(absolutePath);
+  const newAbsolutePath = path.join(parentDir, trimmed);
+
+  if (path.resolve(newAbsolutePath) === path.resolve(absolutePath)) {
+    throw new Error('That\'s already the current name.');
+  }
+  if (await exists(newAbsolutePath)) {
+    throw new Error(`"${trimmed}" already exists in this location.`);
+  }
+
+  await fs.rename(absolutePath, newAbsolutePath);
+  return newAbsolutePath;
 }
 
 function hashContent(c) {

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { initDb, upsertScannedAddons, applyAiClassifications, confirmAddonMatch, createLoadout, deleteLoadout, getDb } from './db.js';
+import { initDb, upsertScannedAddons, applyAiClassifications, confirmAddonMatch, applyAddonRename, createLoadout, deleteLoadout, getDb } from './db.js';
 
 let tmpDir;
 
@@ -184,6 +184,34 @@ describe('applyAiClassifications', () => {
       { id: 'ghost', contentType: 'SCENERY', matchedIcao: 'EDDM', confidence: 'high' },
     ]);
     expect(applied).toBe(0);
+  });
+});
+
+describe('applyAddonRename', () => {
+  beforeEach(async () => { await initDb(tmpDir); });
+
+  it('transplants the record onto the new id/folderName/absolutePath, preserving everything else', async () => {
+    await upsertScannedAddons([scannedAddon({
+      id: 'old-id', folderName: 'fspro-eddf-frankfurt', absolutePath: '/vault/fspro-eddf-frankfurt',
+      matchedIcao: 'EDDF', confirmed: true, alwaysActive: true, nameConflict: true,
+    })]);
+
+    const updated = await applyAddonRename('old-id', 'fspro-eddf-frankfurt-v2', '/vault/fspro-eddf-frankfurt-v2', 'new-id');
+
+    expect(updated.id).toBe('new-id');
+    expect(updated.folderName).toBe('fspro-eddf-frankfurt-v2');
+    expect(updated.absolutePath).toBe('/vault/fspro-eddf-frankfurt-v2');
+    // Everything scan-independent carried over untouched.
+    expect(updated.matchedIcao).toBe('EDDF');
+    expect(updated.confirmed).toBe(true);
+    expect(updated.alwaysActive).toBe(true);
+
+    expect(getDb().data.addons['old-id']).toBeUndefined();
+    expect(getDb().data.addons['new-id']).toEqual(updated);
+  });
+
+  it('throws for an unknown addon id', async () => {
+    await expect(applyAddonRename('ghost', 'new-name', '/vault/new-name', 'new-id')).rejects.toThrow('Unknown addon id');
   });
 });
 

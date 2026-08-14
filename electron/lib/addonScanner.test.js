@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { scanLibrary, guessAircraftType, guessAirlineCode } from './addonScanner.js';
+import { scanLibrary, guessAircraftType, guessAirlineCode, renameVaultFolder, hashPath } from './addonScanner.js';
 
 // Regression test built directly from a real user's actual library layout:
 // a Community folder organized Addons-Linker style (category subfolders
@@ -95,6 +95,58 @@ describe('guessAirlineCode', () => {
   });
 });
 
+describe('renameVaultFolder', () => {
+  let tmpRoot, addonPath;
+
+  beforeAll(async () => {
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'flightsync-rename-test-'));
+    addonPath = path.join(tmpRoot, 'fspro-eddf-frankfurt');
+    await fs.mkdir(addonPath, { recursive: true });
+    await fs.writeFile(path.join(addonPath, 'manifest.json'), '{}');
+    // A sibling that already occupies the name we'll try to rename into,
+    // for the "target already exists" case below.
+    await fs.mkdir(path.join(tmpRoot, 'already-taken'), { recursive: true });
+  });
+
+  afterAll(async () => {
+    await fs.rm(tmpRoot, { recursive: true, force: true });
+  });
+
+  it('renames the folder on disk and returns the new absolute path', async () => {
+    const newPath = await renameVaultFolder(addonPath, 'fspro-eddf-frankfurt-v2');
+    expect(newPath).toBe(path.join(tmpRoot, 'fspro-eddf-frankfurt-v2'));
+    expect(await fs.access(newPath).then(() => true, () => false)).toBe(true);
+    expect(await fs.access(addonPath).then(() => true, () => false)).toBe(false);
+    // Restore for the remaining tests in this block.
+    addonPath = newPath;
+  });
+
+  it('rejects an empty new name', async () => {
+    await expect(renameVaultFolder(addonPath, '   ')).rejects.toThrow('cannot be empty');
+  });
+
+  it('rejects a name containing path-separator/invalid characters', async () => {
+    await expect(renameVaultFolder(addonPath, 'bad/name')).rejects.toThrow(/can't contain/);
+    await expect(renameVaultFolder(addonPath, 'bad:name')).rejects.toThrow(/can't contain/);
+  });
+
+  it('rejects renaming to the exact current name', async () => {
+    const currentName = path.basename(addonPath);
+    await expect(renameVaultFolder(addonPath, currentName)).rejects.toThrow('already the current name');
+  });
+
+  it('rejects when the target name already exists in the same location', async () => {
+    await expect(renameVaultFolder(addonPath, 'already-taken')).rejects.toThrow('already exists');
+  });
+});
+
+describe('hashPath', () => {
+  it('is deterministic for the same path and differs for different paths', () => {
+    expect(hashPath('C:/vault/addon-a')).toBe(hashPath('C:/vault/addon-a'));
+    expect(hashPath('C:/vault/addon-a')).not.toBe(hashPath('C:/vault/addon-b'));
+  });
+});
+
 let tmpRoot;
 let communityPath;
 let vaultPath;
@@ -134,6 +186,61 @@ describe('scanLibrary — symlinked addons inside category folders', () => {
     const { addons, warnings } = await scanLibrary(communityPath, vaultPath);
     expect(addons.map(a => a.folderName)).toContain('some-real-livery');
     expect(warnings.filter(w => w.code === 'no-manifest')).toEqual([]);
+  });
+});
+
+// Regression test for a real, serious data-loss bug found while building
+// the in-app conflict-rename feature: migrateOneFolder used to treat "the
+// vault target name is already taken" as "this is a re-scan of the exact
+// same folder I already migrated" and unconditionally fs.rm'd the SECOND
+// real folder — for two genuinely different addons that just happen to
+// share a leaf name in different Community subfolders, this silently
+// deleted one of the user's actual addon installs and left a junction
+// pointing at the OTHER (unrelated) addon in its place.
+describe('scanLibrary — two different real addons colliding on first migration', () => {
+  let tmpRoot, communityPath, vaultPath;
+
+  beforeAll(async () => {
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'flightsync-scanner-collision-test-'));
+    communityPath = path.join(tmpRoot, 'Community');
+    vaultPath = path.join(tmpRoot, 'vault');
+    await fs.mkdir(communityPath, { recursive: true });
+
+    // Two DIFFERENT real addon folders, never yet migrated, sharing the
+    // same leaf name under different category subfolders — exactly the
+    // shape markNameConflicts already assumes can legitimately exist.
+    const first = path.join(communityPath, 'Airports', 'fspro-eddf-frankfurt');
+    const second = path.join(communityPath, 'Backup', 'fspro-eddf-frankfurt');
+    await fs.mkdir(first, { recursive: true });
+    await fs.mkdir(second, { recursive: true });
+    await fs.writeFile(path.join(first, 'manifest.json'), JSON.stringify({ title: 'Frankfurt (current)' }));
+    await fs.writeFile(path.join(second, 'manifest.json'), JSON.stringify({ title: 'Frankfurt (old backup)' }));
+    await fs.writeFile(path.join(second, 'proof-of-real-content.txt'), 'this must survive the scan');
+  });
+
+  afterAll(async () => {
+    await fs.rm(tmpRoot, { recursive: true, force: true });
+  });
+
+  it('migrates the first one and leaves the second untouched with a warning, deleting nothing', async () => {
+    const { addons, warnings } = await scanLibrary(communityPath, vaultPath);
+
+    // Exactly one made it into the vault/library — the other was correctly
+    // refused rather than silently merged/overwritten.
+    expect(addons).toHaveLength(1);
+
+    // The critical assertion: the second folder's real content is still on
+    // disk, completely untouched, not deleted.
+    const secondStillExists = await fs.access(path.join(communityPath, 'Backup', 'fspro-eddf-frankfurt', 'proof-of-real-content.txt'))
+      .then(() => true, () => false);
+    expect(secondStillExists).toBe(true);
+
+    // And it's still a real folder, not silently turned into a junction
+    // pointing at the other (unrelated) addon.
+    const stat = await fs.lstat(path.join(communityPath, 'Backup', 'fspro-eddf-frankfurt'));
+    expect(stat.isSymbolicLink()).toBe(false);
+
+    expect(warnings.some(w => w.code === 'name-conflict' && w.path.includes('Backup'))).toBe(true);
   });
 });
 
