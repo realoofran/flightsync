@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { computeSyncPlan, applySyncPlan, invertSyncEntry } from './symlinkManager.js';
+import { computeSyncPlan, applySyncPlan, invertSyncEntry, removeBrokenLink } from './symlinkManager.js';
 
 // computeSyncPlan/applySyncPlan are the only code in the app that writes into
 // the real Community folder, so this exercises them against real
@@ -91,6 +91,41 @@ describe('computeSyncPlan + applySyncPlan (real filesystem)', () => {
     expect(result.linked).toEqual([]);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].id).toBe(realFolderAddon.id);
+  });
+});
+
+// removeBrokenLink is used both for the Library "Remove this broken link"
+// button and, since v1.11.0, to proactively clean up the stale Community
+// junction left behind when a currently-linked addon gets renamed (see
+// main.js's library:renameAddon) — real-filesystem coverage for both.
+describe('removeBrokenLink (real filesystem)', () => {
+  it('removes an existing junction/symlink', async () => {
+    const target = path.join(vaultAddonsPath, addonRequired.folderName);
+    const linkPath = path.join(communityPath, 'link-to-remove');
+    await fs.symlink(target, linkPath, process.platform === 'win32' ? 'junction' : 'dir');
+
+    await removeBrokenLink(linkPath);
+    expect(await fs.lstat(linkPath).then(() => true, () => false)).toBe(false);
+  });
+
+  it('removes a genuinely broken (dangling-target) junction just as cleanly', async () => {
+    const linkPath = path.join(communityPath, 'dangling-link-to-remove');
+    await fs.symlink(path.join(vaultAddonsPath, 'nonexistent-target'), linkPath, process.platform === 'win32' ? 'junction' : 'dir');
+
+    await removeBrokenLink(linkPath);
+    expect(await fs.lstat(linkPath).then(() => true, () => false)).toBe(false);
+  });
+
+  it('is a silent no-op when nothing exists at the path', async () => {
+    await expect(removeBrokenLink(path.join(communityPath, 'never-existed'))).resolves.not.toThrow();
+  });
+
+  it('refuses to delete a real (non-symlink) folder, even if asked to', async () => {
+    const realFolder = path.join(communityPath, 'a-real-folder-not-a-link');
+    await fs.mkdir(realFolder, { recursive: true });
+
+    await expect(removeBrokenLink(realFolder)).rejects.toThrow('not a link');
+    expect(await fs.access(realFolder).then(() => true, () => false)).toBe(true);
   });
 });
 

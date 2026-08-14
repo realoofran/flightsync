@@ -542,6 +542,25 @@ ipcMain.handle('library:renameAddon', async (_e, { id, newFolderName }) => {
   await applyAddonRename(id, newFolderName.trim(), newAbsolutePath, newId);
 
   const { communityPath, vaultPath } = getDb().data.settings;
+
+  // If this addon was currently linked into Community, that junction still
+  // points at the OLD vault path — the rename above only moved the vault
+  // folder, it didn't (and can't, since MSFS itself might be reading it)
+  // touch the live Community folder. Confirmed via a real-filesystem test:
+  // the junction "exists" but reading through it fails ENOENT once its
+  // target has moved. It WOULD self-heal on the next rescan (this is
+  // exactly what the existing broken-link warning/removal flow already
+  // handles), but cleaning it up here immediately means the user never
+  // has to notice or deal with the leftover clutter at all.
+  if (communityPath) {
+    await removeBrokenLink(path.join(communityPath, existing.folderName)).catch(() => {
+      // Best-effort — if it wasn't linked, wasn't a symlink, or is
+      // otherwise unremovable, the broken-link scan warning is still
+      // there as a fallback, so a failure here is never fatal to the
+      // rename itself (which already succeeded above).
+    });
+  }
+
   const { addons: scanned, warnings } = await scanLibrary(communityPath, vaultPath, getDb().data.learnedTokens);
   await upsertScannedAddons(scanned);
   return { addons: Object.values(getDb().data.addons), warnings };
